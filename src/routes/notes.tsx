@@ -1,20 +1,19 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  AppSidebar,
+} from '@/components/app-sidebar';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+  SidebarInset,
+  SidebarProvider,
+} from '@/components/ui/sidebar';
+import { SiteHeader } from '@/components/site-header';
+import { ChevronLeft, Search, Filter, Plus } from 'lucide-react';
+import { MantineProvider } from '@mantine/core';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -22,239 +21,228 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
-import {
-  Search,
-  Plus,
-  Star,
-  Archive,
-  Filter,
-  Trash2,
-  Tag,
-  Calendar,
-  BookOpen,
-  Edit3,
-  Share2,
-} from 'lucide-react';
-import { NotesSkeleton } from '@/components/skeletons';
 
-export const Route = createFileRoute('/notes')({ component: NotesPage });
+// Component Imports
+import { NoteCard, NoteCardSkeleton } from '@/components/notes/NoteCard';
+import { NoteDetailView, NoteDetailViewSkeleton } from '@/components/notes/NoteDetailView';
+import { NotesSkeleton } from '@/components/skeletons/NotesSkeleton';
+
+
+// --- Template Data (will be replaced by API calls) ---
+
+// Represents a single lecture note or document
+export interface LectureNote {
+  id: string;
+  title: string;
+  courseName: string;
+  content: string; // JSON string from BlockNote
+  summary?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  isFavorite: boolean;
+  category: string;
+  tags: string[];
+  uploadedDocuments: Array<{
+    id: string;
+    name: string;
+    type: 'pdf' | 'docx' | 'txt' | 'ppt';
+    url: string;
+  }>;
+}
+
+// Mock data to power the UI until the API is connected
+export const mockLectureNotes: LectureNote[] = [
+  {
+    id: 'note-1',
+    title: 'Week 1: Introduction to Neural Networks',
+    courseName: 'AI Fundamentals',
+    content: JSON.stringify([
+      { type: 'heading', level: 1, content: 'Introduction to Neural Networks' },
+      { type: 'paragraph', content: 'A neural network is a series of algorithms that...' },
+    ]),
+    category: 'AI',
+    tags: ['neural-networks', 'deep-learning'],
+    isFavorite: true,
+    summary: 'An overview of neural networks.',
+    createdAt: '2024-05-20T10:00:00Z',
+    updatedAt: '2024-05-20T11:30:00Z',
+    userId: 'user-123',
+    uploadedDocuments: [
+      { id: 'doc-1', name: 'lecture1_slides.ppt', type: 'ppt', url: '#' },
+    ],
+  },
+  {
+    id: 'note-2',
+    title: 'Data Structures: Trees and Graphs',
+    courseName: 'Advanced Algorithms',
+    content: JSON.stringify([{ type: 'heading', level: 1, content: 'Trees and Graphs' }]),
+    category: 'Algorithms',
+    tags: ['data-structures', 'graphs'],
+    isFavorite: false,
+    summary: 'A look at non-linear data structures.',
+    createdAt: '2024-05-18T14:00:00Z',
+    updatedAt: '2024-05-18T15:00:00Z',
+    userId: 'user-123',
+    uploadedDocuments: [],
+  },
+];
+
+const categories = ['All', 'AI', 'Algorithms', 'Mathematics', 'History'];
+
+// --- TanStack Route Definition ---
+export const Route = createFileRoute('/notes')({
+  component: NotesPage,
+});
 
 function NotesPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [notes, setNotes] = useState<LectureNote[]>([]);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
-    // Simulate loading time
+    // Simulate API fetch
     const timer = setTimeout(() => {
+      setNotes(mockLectureNotes);
+      // Select the first note by default if the list is not empty
+      if (mockLectureNotes.length > 0) {
+        setSelectedNoteId(mockLectureNotes[0].id);
+      }
       setIsLoading(false);
     }, 200);
 
     return () => clearTimeout(timer);
   }, []);
 
+  const filteredNotes = useMemo(() => {
+    return notes.filter(note => {
+      const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || note.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [notes, searchTerm, selectedCategory]);
+
+  const selectedNote = useMemo(() => {
+    return notes.find((note) => note.id === selectedNoteId);
+  }, [notes, selectedNoteId]);
+
+  const handleSelectNote = (id: string) => {
+    setSelectedNoteId(id);
+  };
+
+  const handleUpdateNote = (updatedNoteData: Partial<LectureNote>) => {
+    setNotes(prevNotes =>
+      prevNotes.map(note =>
+        note.id === selectedNoteId 
+          ? { ...note, ...updatedNoteData, updatedAt: new Date().toISOString() } 
+          : note
+      )
+    );
+  };
+
+  const handleCreateNewNote = () => {
+    const newNote: LectureNote = {
+      id: `note-${Date.now()}`,
+      title: "Untitled Note",
+      courseName: "New Course",
+      content: '[]',
+      category: 'Uncategorized',
+      tags: [],
+      isFavorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: 'user-123', // Placeholder
+      uploadedDocuments: []
+    };
+    setNotes(prev => [newNote, ...prev]);
+    setSelectedNoteId(newNote.id);
+  };
+
   if (isLoading) {
     return <NotesSkeleton />;
   }
-
-  const notes = [
-    {
-      id: 1,
-      title: 'Biology Chapter 5: Cell Structure',
-      content: 'Key concepts about mitochondria, nucleus, and cell membrane...',
-      category: 'Biology',
-      tags: ['cells', 'organelles', 'exam-prep'],
-      lastModified: '2024-01-15',
-      isFavorite: true,
-    },
-    {
-      id: 2,
-      title: 'Math: Calculus Derivatives',
-      content: 'Rules for finding derivatives, chain rule, product rule...',
-      category: 'Mathematics',
-      tags: ['calculus', 'derivatives', 'formulas'],
-      lastModified: '2024-01-14',
-      isFavorite: false,
-    },
-    {
-      id: 3,
-      title: 'History: World War II Timeline',
-      content: 'Important dates and events during WWII...',
-      category: 'History',
-      tags: ['timeline', 'wwii', 'dates'],
-      lastModified: '2024-01-13',
-      isFavorite: true,
-    },
-  ];
-
-  const categories = ['all', 'Biology', 'Mathematics', 'History', 'Physics', 'Chemistry'];
-
-  const filteredNotes = notes.filter(note => {
-    const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         note.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || note.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-          <div className="flex items-center justify-between space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight">My Notes</h2>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Note
-            </Button>
-          </div>
-
-          <Tabs defaultValue="all-notes" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="all-notes">All Notes</TabsTrigger>
-              <TabsTrigger value="favorites">Favorites</TabsTrigger>
-              <TabsTrigger value="recent">Recent</TabsTrigger>
-              <TabsTrigger value="archived">Archived</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all-notes" className="space-y-4">
-              {/* Search and Filter Bar */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search notes..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8"
-                    />
-                  </div>
-                </div>
+        <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-3rem)]">
+          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r flex flex-col ${selectedNoteId ? 'hidden md:flex' : 'flex'}`}>
+            <header className="mb-4">
+              <h1 className="text-xl font-semibold text-gray-800 mb-4">My Notes</h1>
+              <div className="relative mb-4">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search notes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+              </div>
+              <div className="flex items-center gap-2">
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category} value={category}>
-                        {category === 'all' ? 'All Categories' : category}
+                        {category}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                 <Button onClick={handleCreateNewNote} size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    New
+                </Button>
               </div>
+            </header>
+            <div className="space-y-3 overflow-y-auto flex-grow">
+              {filteredNotes.length > 0 ? filteredNotes.map(note => (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  onSelectNote={handleSelectNote}
+                  isSelected={note.id === selectedNoteId}
+                />
+              )) : (
+                 <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
+              )}
+            </div>
+          </aside>
 
-              {/* Notes Grid */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredNotes.map((note) => (
-                  <Card key={note.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 flex-1">
-                          <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">{note.category}</Badge>
-                            {note.isFavorite && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
-                        {note.content}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {note.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs">
-                            <Tag className="h-3 w-3 mr-1" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {note.lastModified}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Share2 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+          <main className={`flex-1 w-full md:w-2/3 lg:w-3/4 p-4 md:p-8 overflow-y-auto ${selectedNoteId ? 'block' : 'hidden md:block'}`}>
+            {selectedNoteId && (
+              <button
+                onClick={() => setSelectedNoteId(null)}
+                className="md:hidden mb-4 flex items-center text-sm font-semibold text-gray-600 hover:text-gray-800"
+                aria-label="Back to notes list"
+              >
+                <ChevronLeft size={18} className="mr-1" />
+                Back to Notes
+              </button>
+            )}
 
-            <TabsContent value="favorites" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {notes.filter(note => note.isFavorite).map((note) => (
-                  <Card key={note.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
-                      <Badge variant="secondary">{note.category}</Badge>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {note.content}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{note.lastModified}</span>
-                        <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+            {selectedNote ? (
+              <MantineProvider>
+                <NoteDetailView
+                  key={selectedNote.id}
+                  note={selectedNote}
+                  onUpdateNote={handleUpdateNote}
+                />
+              </MantineProvider>
+            ) : (
+              <div className="text-center py-10 flex flex-col items-center justify-center h-full">
+                <h2 className="text-2xl font-semibold text-gray-600">Select a note</h2>
+                <p className="text-gray-500 mt-2">Choose a note from the list to view or create a new one.</p>
               </div>
-            </TabsContent>
-
-            <TabsContent value="recent" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {notes.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()).map((note) => (
-                  <Card key={note.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
-                      <Badge variant="secondary">{note.category}</Badge>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {note.content}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{note.lastModified}</span>
-                        <BookOpen className="h-4 w-4" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="archived" className="space-y-4">
-              <div className="text-center py-8">
-                <Archive className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-muted-foreground mb-2">No archived notes</h3>
-                <p className="text-sm text-muted-foreground">Archived notes will appear here</p>
-              </div>
-            </TabsContent>
-          </Tabs>
+            )}
+          </main>
         </div>
       </SidebarInset>
     </SidebarProvider>

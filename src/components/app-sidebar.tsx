@@ -1,6 +1,5 @@
-import * as React from "react"
+import { Link } from "@tanstack/react-router";
 import {
-  CameraIcon,
   ClipboardListIcon,
   DatabaseIcon,
   FileCodeIcon,
@@ -8,14 +7,12 @@ import {
   FileTextIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
-  ListIcon,
   SearchIcon,
   SettingsIcon,
   UsersIcon,
   UserCircle,
   Palette,
 } from "lucide-react"
-import { Link } from "@tanstack/react-router"
 import { UserButton, useUser } from "@clerk/clerk-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -31,20 +28,16 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+// Sample data for navigation
 const data = {
-  user: {
-    name: "Student",
-    email: "student@learningplatform.com",
-    avatar: "/avatars/student.jpg",
-  },
   navMain: [
     {
-      title: "Learning Dashboard",
+      title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboardIcon,
     },
     {
-      title: "My Notes",
+      title: "Notes",
       url: "/notes",
       icon: FileTextIcon,
     },
@@ -54,102 +47,44 @@ const data = {
       icon: FileCodeIcon,
     },
     {
-      title: "Study Schedule",
-      url: "/study-schedule",
-      icon: ListIcon,
-    },
-    {
       title: "Collaboration",
       url: "/collaboration",
       icon: UsersIcon,
     },
+    {
+      title: "Study Schedule",
+      url: "/study-schedule",
+      icon: ClipboardListIcon,
+    },
   ],
-  navClouds: [
+  documents: [
     {
-      title: "Flashcards",
-      icon: CameraIcon,
-      isActive: true,
+      name: "Recent Documents",
       url: "#",
-      items: [
-        {
-          title: "Review Queue",
-          url: "#",
-        },
-        {
-          title: "Mastered Cards",
-          url: "#",
-        },
-      ],
+      icon: FileIcon,
     },
     {
-      title: "Quizzes",
-      icon: FileTextIcon,
+      name: "Shared Files",
       url: "#",
-      items: [
-        {
-          title: "Practice Tests",
-          url: "#",
-        },
-        {
-          title: "Quiz History",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Study Groups",
-      icon: UsersIcon,
-      url: "#",
-      items: [
-        {
-          title: "My Groups",
-          url: "#",
-        },
-        {
-          title: "Join Group",
-          url: "#",
-        },
-      ],
+      icon: DatabaseIcon,
     },
   ],
   navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: SettingsIcon,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HelpCircleIcon,
-    },
     {
       title: "Search",
       url: "#",
       icon: SearchIcon,
     },
-  ],
-  documents: [
     {
-      name: "Study Materials",
+      title: "Help",
       url: "#",
-      icon: DatabaseIcon,
-    },
-    {
-      name: "Progress Reports",
-      url: "#",
-      icon: ClipboardListIcon,
-    },
-    {
-      name: "AI Assistant",
-      url: "#",
-      icon: FileIcon,
+      icon: HelpCircleIcon,
     },
   ],
-}
+};
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { isSignedIn } = useUser()
+export function AppSidebar({ ...props }) {
+  const { isSignedIn } = useUser();
 
   if (!isSignedIn) {
     return (
