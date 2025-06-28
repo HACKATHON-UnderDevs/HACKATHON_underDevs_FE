@@ -50,8 +50,8 @@ const data = {
       icon: FileCodeIcon,
     },
     {
-      title: "Collaboration",
-      url: "/collaboration",
+      title: "Workspace",
+      url: "/workspace",
       icon: UsersIcon,
     },
     {

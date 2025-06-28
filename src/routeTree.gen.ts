@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as StudyScheduleRouteImport } from './routes/study-schedule'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
@@ -16,13 +17,17 @@ import { Route as QuizRouteImport } from './routes/quiz'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CollaborationRouteImport } from './routes/collaboration'
 import { Route as AiGenerationRouteImport } from './routes/ai-generation'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SignUpSsoCallbackRouteImport } from './routes/sign-up/sso-callback'
 import { Route as SignInSsoCallbackRouteImport } from './routes/sign-in/sso-callback'
 import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudyScheduleRoute = StudyScheduleRouteImport.update({
   id: '/study-schedule',
   path: '/study-schedule',
@@ -58,11 +63,6 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CollaborationRoute = CollaborationRouteImport.update({
-  id: '/collaboration',
-  path: '/collaboration',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AiGenerationRoute = AiGenerationRouteImport.update({
   id: '/ai-generation',
   path: '/ai-generation',
@@ -92,7 +92,6 @@ const QuizSessionIdRoute = QuizSessionIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-generation': typeof AiGenerationRoute
-  '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
@@ -100,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/workspace': typeof WorkspaceRoute
   '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
@@ -107,7 +107,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-generation': typeof AiGenerationRoute
-  '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
@@ -115,6 +114,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/workspace': typeof WorkspaceRoute
   '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
@@ -123,7 +123,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-generation': typeof AiGenerationRoute
-  '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
@@ -131,6 +130,7 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/workspace': typeof WorkspaceRoute
   '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
@@ -140,7 +140,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-generation'
-    | '/collaboration'
     | '/dashboard'
     | '/login'
     | '/notes'
@@ -148,6 +147,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/workspace'
     | '/quiz/$sessionId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
@@ -155,7 +155,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-generation'
-    | '/collaboration'
     | '/dashboard'
     | '/login'
     | '/notes'
@@ -163,6 +162,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/workspace'
     | '/quiz/$sessionId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
@@ -170,7 +170,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-generation'
-    | '/collaboration'
     | '/dashboard'
     | '/login'
     | '/notes'
@@ -178,6 +177,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/workspace'
     | '/quiz/$sessionId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
@@ -186,7 +186,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiGenerationRoute: typeof AiGenerationRoute
-  CollaborationRoute: typeof CollaborationRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   NotesRoute: typeof NotesRoute
@@ -194,10 +193,18 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRouteWithChildren
   SignUpRoute: typeof SignUpRouteWithChildren
   StudyScheduleRoute: typeof StudyScheduleRoute
+  WorkspaceRoute: typeof WorkspaceRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/study-schedule': {
       id: '/study-schedule'
       path: '/study-schedule'
@@ -245,13 +252,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/collaboration': {
-      id: '/collaboration'
-      path: '/collaboration'
-      fullPath: '/collaboration'
-      preLoaderRoute: typeof CollaborationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai-generation': {
@@ -327,7 +327,6 @@ const SignUpRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiGenerationRoute: AiGenerationRoute,
-  CollaborationRoute: CollaborationRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   NotesRoute: NotesRoute,
@@ -335,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRouteWithChildren,
   SignUpRoute: SignUpRouteWithChildren,
   StudyScheduleRoute: StudyScheduleRoute,
+  WorkspaceRoute: WorkspaceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
