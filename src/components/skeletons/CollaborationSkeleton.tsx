@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 
 export function CollaborationSkeleton() {
   return (
@@ -21,12 +21,6 @@ export function CollaborationSkeleton() {
           </div>
 
           <Tabs defaultValue="study-groups" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="study-groups">Study Groups</TabsTrigger>
-              <TabsTrigger value="real-time">Real-time Collaboration</TabsTrigger>
-              <TabsTrigger value="activity">Recent Activity</TabsTrigger>
-            </TabsList>
-
             {/* Study Groups */}
             <TabsContent value="study-groups" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
