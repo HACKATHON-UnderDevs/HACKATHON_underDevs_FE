@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+// src/components/app-sidebar.tsx
 import {
   ClipboardListIcon,
   DatabaseIcon,
@@ -12,6 +12,7 @@ import {
   UsersIcon,
   UserCircle,
   Palette,
+  SwordsIcon,
 } from "lucide-react"
 import { UserButton, useUser } from "@clerk/clerk-react"
 
@@ -27,6 +28,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Link } from "@tanstack/react-router"
+
 
 // Sample data for navigation
 const data = {
@@ -50,6 +53,11 @@ const data = {
       title: "Workspace",
       url: "/workspace",
       icon: UsersIcon,
+    },
+    {
+      title: "Multiplayer Quiz",
+      url: "/quiz",
+      icon: SwordsIcon,
     },
     {
       title: "Study Schedule",

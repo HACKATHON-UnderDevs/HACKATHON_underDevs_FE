@@ -195,13 +195,13 @@ function NotesPage() {
             <header className="mb-4">
               <h1 className="text-xl font-semibold text-gray-800 mb-4">My Notes</h1>
               <div className="relative mb-4">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search notes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
-                  />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search notes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={() => navigate({ to: '/notes' })}>All Notes</Button>
@@ -221,7 +221,7 @@ function NotesPage() {
                   onDeleteNote={handleDeleteNote}
                 />
               )) : (
-                 <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
+                <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
               )}
             </div>
           </aside>
