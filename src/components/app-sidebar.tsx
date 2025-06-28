@@ -1,5 +1,4 @@
 // src/components/app-sidebar.tsx
-import * as React from "react"
 import {
   ClipboardListIcon,
   DatabaseIcon,
@@ -29,6 +28,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Link } from "@tanstack/react-router"
+
 
 // Sample data for navigation
 const data = {
@@ -57,6 +58,8 @@ const data = {
       title: "Multiplayer Quiz",
       url: "/quiz",
       icon: SwordsIcon,
+    },
+    {
       title: "Study Schedule",
       url: "/study-schedule",
       icon: ClipboardListIcon,
