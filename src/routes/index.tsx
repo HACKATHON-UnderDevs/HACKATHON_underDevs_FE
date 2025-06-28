@@ -1,9 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/Button";
+import { useState, useEffect } from "react";
+import { IndexSkeleton } from "@/components/skeletons";
 
 export const Route = createFileRoute("/")({component: Index});
 
 function Index() {
+	const [isLoading, setIsLoading] = useState(true);
+
+	useEffect(() => {
+		// Simulate loading time
+		const timer = setTimeout(() => {
+			setIsLoading(false);
+		}, 200);
+
+		return () => clearTimeout(timer);
+	}, []);
+
+	if (isLoading) {
+		return <IndexSkeleton />;
+	}
+
 	return (
 		<div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
 			<div className="text-center space-y-6">

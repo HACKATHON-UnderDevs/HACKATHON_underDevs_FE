@@ -4,14 +4,30 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SignUp } from "@clerk/clerk-react"; // Import SignUp component
 import logo_bean_journey from "@/images/logo_bean_journal.png";
 import Silk from "@/components/Silk/Silk"; // Added Silk import
+import { useState, useEffect } from "react";
+import { SignUpSkeleton } from "@/components/skeletons";
 
 export const Route = createFileRoute("/sign-up")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const [isLoading, setIsLoading] = useState(true);
   const signInUrl = import.meta.env.VITE_CLERK_SIGN_IN_URL || "/sign-in";
   const afterSignUpUrl = import.meta.env.VITE_CLERK_AFTER_SIGN_UP_URL || "/dashboard";
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 950);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <SignUpSkeleton />;
+  }
 
   // Key features, similar to sign-in page
   const keyFeatures = [

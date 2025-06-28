@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -64,10 +64,12 @@ import {
   Edit,
   Crown,
 } from 'lucide-react';
+import { CollaborationSkeleton } from '@/components/skeletons';
 
 export const Route = createFileRoute('/collaboration')({ component: CollaborationPage });
 
 function CollaborationPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [collaborativeNote, setCollaborativeNote] = useState('');
@@ -75,6 +77,19 @@ function CollaborationPage() {
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1400);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <CollaborationSkeleton />;
+  }
 
   const studyGroups = [
     {

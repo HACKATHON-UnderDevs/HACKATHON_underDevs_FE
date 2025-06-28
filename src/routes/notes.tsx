@@ -1,123 +1,100 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/routes/notes.tsx
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useMemo } from 'react';
-import { AppSidebar } from '@/components/app-sidebar';
+import { useState, useEffect } from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
-import { ChevronLeft } from 'lucide-react';
-import { MantineProvider } from '@mantine/core';
-import { Button } from '@/components/ui/Button';
+import {
+  Search,
+  Plus,
+  Star,
+  Archive,
+  Filter,
+  Trash2,
+  Tag,
+  Calendar,
+  BookOpen,
+  Edit3,
+  Share2,
+} from 'lucide-react';
+import { NotesSkeleton } from '@/components/skeletons';
 
-// Component Imports
-import { NoteCard, NoteCardSkeleton } from '@/components/notes/NoteCard';
-import { NoteDetailView, NoteDetailViewSkeleton } from '@/components/notes/NoteDetailView';
-
-// --- Template Data (will be replaced by API calls) ---
-
-// Represents a single lecture note or document
-export interface LectureNote {
-  id: string;
-  title: string;
-  courseName: string;
-  content: string; // JSON string from BlockNote
-  summary?: string;
-  createdAt: string;
-  updatedAt: string;
-  userId: string;
-  uploadedDocuments: Array<{
-    id: string;
-    name: string;
-    type: 'pdf' | 'docx' | 'txt' | 'ppt';
-    url: string;
-  }>;
-}
-
-// Mock data to power the UI until the API is connected
-export const mockLectureNotes: LectureNote[] = [
-  {
-    id: 'note-1',
-    title: 'Week 1: Introduction to Neural Networks',
-    courseName: 'AI Fundamentals',
-    content: JSON.stringify([
-      {
-        type: 'heading',
-        level: 1,
-        content: [{ type: 'text', text: 'Introduction to Neural Networks', styles: {} }],
-      },
-      {
-        type: 'paragraph',
-        content: [
-          {
-            type: 'text',
-            text: 'A neural network is a series of algorithms that endeavors to recognize underlying relationships in a set of data through a process that mimics the way the human brain operates.',
-            styles: {},
-          },
-        ],
-      },
-      {
-        type: 'bulletListItem',
-        content: [{ type: 'text', text: 'Consists of layers: input, hidden, and output.', styles: {} }],
-      },
-      {
-        type: 'bulletListItem',
-        content: [{ type: 'text', text: 'Each connection has a weight.', styles: {} }],
-      },
-    ]),
-    summary: 'An overview of neural networks, their structure, and function.',
-    createdAt: '2024-05-20T10:00:00Z',
-    updatedAt: '2024-05-20T11:30:00Z',
-    userId: 'user-123',
-    uploadedDocuments: [
-      { id: 'doc-1', name: 'lecture1_slides.ppt', type: 'ppt', url: '#' },
-      { id: 'doc-2', name: 'research_paper_1.pdf', type: 'pdf', url: '#' },
-    ],
-  },
-  {
-    id: 'note-2',
-    title: 'Data Structures: Trees and Graphs',
-    courseName: 'Advanced Algorithms',
-    content: JSON.stringify([
-      { type: 'heading', level: 1, content: 'Trees and Graphs' },
-      { type: 'paragraph', content: 'Exploring non-linear data structures.' }
-    ]),
-    summary: 'A look at trees and graphs as non-linear data structures.',
-    createdAt: '2024-05-18T14:00:00Z',
-    updatedAt: '2024-05-18T15:00:00Z',
-    userId: 'user-123',
-    uploadedDocuments: [
-      { id: 'doc-3', name: 'assignment_3.docx', type: 'docx', url: '#' },
-    ],
-  },
-  {
-    id: 'note-3',
-    title: 'Calculus I: Limits and Derivatives',
-    courseName: 'Mathematics for Engineers',
-    content: JSON.stringify([
-      { type: 'heading', level: 1, content: 'Limits' },
-      { type: 'paragraph', content: 'The concept of a limit is fundamental to calculus.' }
-    ]),
-    createdAt: '2024-05-15T09:00:00Z',
-    updatedAt: '2024-05-15T10:30:00Z',
-    userId: 'user-123',
-    uploadedDocuments: [],
-  },
-];
-
-// --- TanStack Route Definition ---
-export const Route = createFileRoute('/notes')({
-  component: NotesPage,
-});
+export const Route = createFileRoute('/notes')({ component: NotesPage });
 
 function NotesPage() {
-  const [isLoading, setIsLoading] = useState(false); // Simulate loading state
-  const [notes, setNotes] = useState<LectureNote[]>(mockLectureNotes);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(
-    mockLectureNotes.length > 0 ? mockLectureNotes[0].id : null
-  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <NotesSkeleton />;
+  }
+
+  const notes = [
+    {
+      id: 1,
+      title: 'Biology Chapter 5: Cell Structure',
+      content: 'Key concepts about mitochondria, nucleus, and cell membrane...',
+      category: 'Biology',
+      tags: ['cells', 'organelles', 'exam-prep'],
+      lastModified: '2024-01-15',
+      isFavorite: true,
+    },
+    {
+      id: 2,
+      title: 'Math: Calculus Derivatives',
+      content: 'Rules for finding derivatives, chain rule, product rule...',
+      category: 'Mathematics',
+      tags: ['calculus', 'derivatives', 'formulas'],
+      lastModified: '2024-01-14',
+      isFavorite: false,
+    },
+    {
+      id: 3,
+      title: 'History: World War II Timeline',
+      content: 'Important dates and events during WWII...',
+      category: 'History',
+      tags: ['timeline', 'wwii', 'dates'],
+      lastModified: '2024-01-13',
+      isFavorite: true,
+    },
+  ];
+
+  const categories = ['all', 'Biology', 'Mathematics', 'History', 'Physics', 'Chemistry'];
 
   const selectedNote = useMemo(() => {
     return notes.find((note) => note.id === selectedNoteId);

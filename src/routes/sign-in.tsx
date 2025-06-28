@@ -4,14 +4,30 @@ import { createFileRoute } from "@tanstack/react-router";
 import logo_bean_journey from "@/images/logo_bean_journal.png";
 import { SignIn } from "@clerk/clerk-react";
 import Silk from "@/components/Silk/Silk";
+import { useState, useEffect } from "react";
+import { SignInSkeleton } from "@/components/skeletons";
 
 export const Route = createFileRoute("/sign-in")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const [isLoading, setIsLoading] = useState(true);
   const signUpUrl = import.meta.env.VITE_CLERK_SIGN_UP_URL || "/sign-up";
   const afterSignInUrl = import.meta.env.VITE_CLERK_AFTER_SIGN_IN_URL || "/dashboard";
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <SignInSkeleton />;
+  }
 
   const funFacts = [
     "Journaling can reduce stress and improve your mood.",
