@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import {
   Card,
@@ -42,8 +42,9 @@ import {
   Share2,
 } from 'lucide-react';
 import { NotesSkeleton } from '@/components/skeletons';
+import { notes } from '@/data/notes';
 
-export const Route = createFileRoute('/notes')({ component: NotesPage });
+export const Route = createFileRoute('/notes/')({ component: NotesPage });
 
 function NotesPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -63,41 +64,12 @@ function NotesPage() {
     return <NotesSkeleton />;
   }
 
-  const notes = [
-    {
-      id: 1,
-      title: 'Biology Chapter 5: Cell Structure',
-      content: 'Key concepts about mitochondria, nucleus, and cell membrane...',
-      category: 'Biology',
-      tags: ['cells', 'organelles', 'exam-prep'],
-      lastModified: '2024-01-15',
-      isFavorite: true,
-    },
-    {
-      id: 2,
-      title: 'Math: Calculus Derivatives',
-      content: 'Rules for finding derivatives, chain rule, product rule...',
-      category: 'Mathematics',
-      tags: ['calculus', 'derivatives', 'formulas'],
-      lastModified: '2024-01-14',
-      isFavorite: false,
-    },
-    {
-      id: 3,
-      title: 'History: World War II Timeline',
-      content: 'Important dates and events during WWII...',
-      category: 'History',
-      tags: ['timeline', 'wwii', 'dates'],
-      lastModified: '2024-01-13',
-      isFavorite: true,
-    },
-  ];
-
-  const categories = ['all', 'Biology', 'Mathematics', 'History', 'Physics', 'Chemistry'];
+  const categories = ['all', ...new Set(notes.map(note => note.category))];
 
   const filteredNotes = notes.filter(note => {
+    const noteContent = JSON.parse(note.content)[0].content as string;
     const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         note.content.toLowerCase().includes(searchTerm.toLowerCase());
+                         noteContent.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || note.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -156,49 +128,51 @@ function NotesPage() {
               {/* Notes Grid */}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredNotes.map((note) => (
-                  <Card key={note.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 flex-1">
-                          <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">{note.category}</Badge>
-                            {note.isFavorite && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                  <Link to="/notes/$noteId" params={{ noteId: String(note.id) }} key={note.id}>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1 flex-1">
+                            <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{note.category}</Badge>
+                              {note.isFavorite && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
-                        {note.content}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {note.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs">
-                            <Tag className="h-3 w-3 mr-1" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {note.lastModified}
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
+                          {(JSON.parse(note.content)[0].content as string) || ''}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {note.tags.map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              <Tag className="h-3 w-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Share2 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {note.lastModified}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Share2 className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             </TabsContent>
@@ -206,21 +180,23 @@ function NotesPage() {
             <TabsContent value="favorites" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {notes.filter(note => note.isFavorite).map((note) => (
-                  <Card key={note.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
-                      <Badge variant="secondary">{note.category}</Badge>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {note.content}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{note.lastModified}</span>
-                        <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <Link to="/notes/$noteId" params={{ noteId: String(note.id) }} key={note.id}>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
+                        <Badge variant="secondary">{note.category}</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {(JSON.parse(note.content)[0].content as string) || ''}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{note.lastModified}</span>
+                          <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             </TabsContent>
@@ -228,21 +204,23 @@ function NotesPage() {
             <TabsContent value="recent" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {notes.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()).map((note) => (
-                  <Card key={note.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
-                      <Badge variant="secondary">{note.category}</Badge>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {note.content}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{note.lastModified}</span>
-                        <BookOpen className="h-4 w-4" />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <Link to="/notes/$noteId" params={{ noteId: String(note.id) }} key={note.id}>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg leading-tight">{note.title}</CardTitle>
+                        <Badge variant="secondary">{note.category}</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {(JSON.parse(note.content)[0].content as string) || ''}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{note.lastModified}</span>
+                          <BookOpen className="h-4 w-4" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             </TabsContent>
@@ -259,4 +237,4 @@ function NotesPage() {
       </SidebarInset>
     </SidebarProvider>
   );
-}
+} 

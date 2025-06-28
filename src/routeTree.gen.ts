@@ -12,14 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudyScheduleRouteImport } from './routes/study-schedule'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
-import { Route as NotesRouteImport } from './routes/notes'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CollaborationRouteImport } from './routes/collaboration'
 import { Route as AiGenerationRouteImport } from './routes/ai-generation'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NotesIndexRouteImport } from './routes/notes/index'
 import { Route as SignUpSsoCallbackRouteImport } from './routes/sign-up/sso-callback'
 import { Route as SignInSsoCallbackRouteImport } from './routes/sign-in/sso-callback'
+import { Route as NotesNoteIdRouteImport } from './routes/notes/$noteId'
 
 const StudyScheduleRoute = StudyScheduleRouteImport.update({
   id: '/study-schedule',
@@ -34,11 +35,6 @@ const SignUpRoute = SignUpRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotesRoute = NotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -66,6 +62,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotesIndexRoute = NotesIndexRouteImport.update({
+  id: '/notes/',
+  path: '/notes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignUpSsoCallbackRoute = SignUpSsoCallbackRouteImport.update({
   id: '/sso-callback',
   path: '/sso-callback',
@@ -76,6 +77,11 @@ const SignInSsoCallbackRoute = SignInSsoCallbackRouteImport.update({
   path: '/sso-callback',
   getParentRoute: () => SignInRoute,
 } as any)
+const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
+  id: '/notes/$noteId',
+  path: '/notes/$noteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -83,12 +89,13 @@ export interface FileRoutesByFullPath {
   '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/notes': typeof NotesRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/notes/$noteId': typeof NotesNoteIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
+  '/notes': typeof NotesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,12 +103,13 @@ export interface FileRoutesByTo {
   '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/notes': typeof NotesRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/notes/$noteId': typeof NotesNoteIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
+  '/notes': typeof NotesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,12 +118,13 @@ export interface FileRoutesById {
   '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/notes': typeof NotesRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/notes/$noteId': typeof NotesNoteIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
+  '/notes/': typeof NotesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -125,12 +134,13 @@ export interface FileRouteTypes {
     | '/collaboration'
     | '/dashboard'
     | '/login'
-    | '/notes'
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/notes/$noteId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
+    | '/notes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -138,12 +148,13 @@ export interface FileRouteTypes {
     | '/collaboration'
     | '/dashboard'
     | '/login'
-    | '/notes'
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/notes/$noteId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
+    | '/notes'
   id:
     | '__root__'
     | '/'
@@ -151,12 +162,13 @@ export interface FileRouteTypes {
     | '/collaboration'
     | '/dashboard'
     | '/login'
-    | '/notes'
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/notes/$noteId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
+    | '/notes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -165,10 +177,11 @@ export interface RootRouteChildren {
   CollaborationRoute: typeof CollaborationRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  NotesRoute: typeof NotesRoute
   SignInRoute: typeof SignInRouteWithChildren
   SignUpRoute: typeof SignUpRouteWithChildren
   StudyScheduleRoute: typeof StudyScheduleRoute
+  NotesNoteIdRoute: typeof NotesNoteIdRoute
+  NotesIndexRoute: typeof NotesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,13 +205,6 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notes': {
-      id: '/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -236,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notes/': {
+      id: '/notes/'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-up/sso-callback': {
       id: '/sign-up/sso-callback'
       path: '/sso-callback'
@@ -249,6 +262,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-in/sso-callback'
       preLoaderRoute: typeof SignInSsoCallbackRouteImport
       parentRoute: typeof SignInRoute
+    }
+    '/notes/$noteId': {
+      id: '/notes/$noteId'
+      path: '/notes/$noteId'
+      fullPath: '/notes/$noteId'
+      preLoaderRoute: typeof NotesNoteIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -281,10 +301,11 @@ const rootRouteChildren: RootRouteChildren = {
   CollaborationRoute: CollaborationRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  NotesRoute: NotesRoute,
   SignInRoute: SignInRouteWithChildren,
   SignUpRoute: SignUpRouteWithChildren,
   StudyScheduleRoute: StudyScheduleRoute,
+  NotesNoteIdRoute: NotesNoteIdRoute,
+  NotesIndexRoute: NotesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
