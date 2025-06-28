@@ -14,13 +14,14 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CollaborationRouteImport } from './routes/collaboration'
 import { Route as AiGenerationRouteImport } from './routes/ai-generation'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotesIndexRouteImport } from './routes/notes/index'
+import { Route as CollaborationIndexRouteImport } from './routes/collaboration/index'
 import { Route as SignUpSsoCallbackRouteImport } from './routes/sign-up/sso-callback'
 import { Route as SignInSsoCallbackRouteImport } from './routes/sign-in/sso-callback'
 import { Route as NotesNoteIdRouteImport } from './routes/notes/$noteId'
+import { Route as CollaborationCollaborationIdRouteImport } from './routes/collaboration/$collaborationId'
 
 const StudyScheduleRoute = StudyScheduleRouteImport.update({
   id: '/study-schedule',
@@ -47,11 +48,6 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CollaborationRoute = CollaborationRouteImport.update({
-  id: '/collaboration',
-  path: '/collaboration',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AiGenerationRoute = AiGenerationRouteImport.update({
   id: '/ai-generation',
   path: '/ai-generation',
@@ -65,6 +61,11 @@ const IndexRoute = IndexRouteImport.update({
 const NotesIndexRoute = NotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollaborationIndexRoute = CollaborationIndexRouteImport.update({
+  id: '/collaboration/',
+  path: '/collaboration/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignUpSsoCallbackRoute = SignUpSsoCallbackRouteImport.update({
@@ -82,48 +83,57 @@ const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
   path: '/notes/$noteId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollaborationCollaborationIdRoute =
+  CollaborationCollaborationIdRouteImport.update({
+    id: '/collaboration/$collaborationId',
+    path: '/collaboration/$collaborationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-generation': typeof AiGenerationRoute
-  '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/collaboration/$collaborationId': typeof CollaborationCollaborationIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
+  '/collaboration': typeof CollaborationIndexRoute
   '/notes': typeof NotesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-generation': typeof AiGenerationRoute
-  '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/collaboration/$collaborationId': typeof CollaborationCollaborationIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
+  '/collaboration': typeof CollaborationIndexRoute
   '/notes': typeof NotesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-generation': typeof AiGenerationRoute
-  '/collaboration': typeof CollaborationRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
+  '/collaboration/$collaborationId': typeof CollaborationCollaborationIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/sso-callback': typeof SignUpSsoCallbackRoute
+  '/collaboration/': typeof CollaborationIndexRoute
   '/notes/': typeof NotesIndexRoute
 }
 export interface FileRouteTypes {
@@ -131,56 +141,60 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-generation'
-    | '/collaboration'
     | '/dashboard'
     | '/login'
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/collaboration/$collaborationId'
     | '/notes/$noteId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
+    | '/collaboration'
     | '/notes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/ai-generation'
-    | '/collaboration'
     | '/dashboard'
     | '/login'
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/collaboration/$collaborationId'
     | '/notes/$noteId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
+    | '/collaboration'
     | '/notes'
   id:
     | '__root__'
     | '/'
     | '/ai-generation'
-    | '/collaboration'
     | '/dashboard'
     | '/login'
     | '/sign-in'
     | '/sign-up'
     | '/study-schedule'
+    | '/collaboration/$collaborationId'
     | '/notes/$noteId'
     | '/sign-in/sso-callback'
     | '/sign-up/sso-callback'
+    | '/collaboration/'
     | '/notes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiGenerationRoute: typeof AiGenerationRoute
-  CollaborationRoute: typeof CollaborationRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   SignInRoute: typeof SignInRouteWithChildren
   SignUpRoute: typeof SignUpRouteWithChildren
   StudyScheduleRoute: typeof StudyScheduleRoute
+  CollaborationCollaborationIdRoute: typeof CollaborationCollaborationIdRoute
   NotesNoteIdRoute: typeof NotesNoteIdRoute
+  CollaborationIndexRoute: typeof CollaborationIndexRoute
   NotesIndexRoute: typeof NotesIndexRoute
 }
 
@@ -221,13 +235,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/collaboration': {
-      id: '/collaboration'
-      path: '/collaboration'
-      fullPath: '/collaboration'
-      preLoaderRoute: typeof CollaborationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/ai-generation': {
       id: '/ai-generation'
       path: '/ai-generation'
@@ -249,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collaboration/': {
+      id: '/collaboration/'
+      path: '/collaboration'
+      fullPath: '/collaboration'
+      preLoaderRoute: typeof CollaborationIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-up/sso-callback': {
       id: '/sign-up/sso-callback'
       path: '/sso-callback'
@@ -268,6 +282,13 @@ declare module '@tanstack/react-router' {
       path: '/notes/$noteId'
       fullPath: '/notes/$noteId'
       preLoaderRoute: typeof NotesNoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collaboration/$collaborationId': {
+      id: '/collaboration/$collaborationId'
+      path: '/collaboration/$collaborationId'
+      fullPath: '/collaboration/$collaborationId'
+      preLoaderRoute: typeof CollaborationCollaborationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -298,13 +319,14 @@ const SignUpRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiGenerationRoute: AiGenerationRoute,
-  CollaborationRoute: CollaborationRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   SignInRoute: SignInRouteWithChildren,
   SignUpRoute: SignUpRouteWithChildren,
   StudyScheduleRoute: StudyScheduleRoute,
+  CollaborationCollaborationIdRoute: CollaborationCollaborationIdRoute,
   NotesNoteIdRoute: NotesNoteIdRoute,
+  CollaborationIndexRoute: CollaborationIndexRoute,
   NotesIndexRoute: NotesIndexRoute,
 }
 export const routeTree = rootRouteImport

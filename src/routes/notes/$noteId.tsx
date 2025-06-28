@@ -146,45 +146,48 @@ function NotePage() {
       <SidebarInset>
         <SiteHeader />
         <main className="p-4 md:p-8">
-          <div className="flex justify-between items-center mb-4">
-            <div className="text-sm text-muted-foreground">
-              DASHBOARD / {note.category.toUpperCase()}
+          <div className="flex flex-col h-[calc(100vh-10rem)]">
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm text-muted-foreground">
+                  DASHBOARD / {note.category.toUpperCase()}
+                </div>
+                <Link to="/notes">
+                  <Button variant="outline" size="sm">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Notes
+                  </Button>
+                </Link>
+              </div>
+
+              <h1 className="text-4xl font-bold tracking-tight mb-2">{note.title}</h1>
+              <p className="text-lg text-muted-foreground mb-8">
+                Phasellus accumsan a augue et efficitur.
+              </p>
             </div>
-            <Link to="/notes">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Notes
-              </Button>
-            </Link>
+            
+            <div className="prose prose-stone dark:prose-invert max-w-none mb-12 flex-grow">
+              <BlockNoteView
+                editor={editor}
+                theme="light"
+                formattingToolbar={false}
+                slashMenu={false}
+                onChange={() => {
+                  if (editor) {
+                    setCurrentContent(JSON.stringify(editor.document, null, 2));
+                  }
+                }}
+              >
+                  <AIMenuController />
+                  <FormattingToolbarWithAI />
+                  <SuggestionMenuWithAI editor={editor} />
+              </BlockNoteView>
+            </div>
+            
+            <div className="mt-auto">
+              <Spotify wide link="https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b?si=a278d259c3874345" />
+            </div>
           </div>
-
-          <h1 className="text-4xl font-bold tracking-tight mb-2">{note.title}</h1>
-          <p className="text-lg text-muted-foreground mb-8">
-            Phasellus accumsan a augue et efficitur.
-          </p>
-
-          <div className="prose prose-stone dark:prose-invert max-w-none mb-12">
-            <BlockNoteView
-              editor={editor}
-              theme="light"
-              formattingToolbar={false}
-              slashMenu={false}
-              onChange={() => {
-                if (editor) {
-                  setCurrentContent(JSON.stringify(editor.document, null, 2));
-                }
-              }}
-            >
-                <AIMenuController />
-                <FormattingToolbarWithAI />
-                <SuggestionMenuWithAI editor={editor} />
-            </BlockNoteView>
-          </div>
-          
-          <div className="mb-12">
-            <Spotify wide link="https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b?si=a278d259c3874345" />
-          </div>
-
         </main>
       </SidebarInset>
     </SidebarProvider>
