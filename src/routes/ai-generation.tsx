@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Tabs,
@@ -32,27 +33,47 @@ import {
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
 import {
-  Sparkles,
   Brain,
+  Sparkles,
   FileText,
-  Upload,
-  Zap,
-  Clock,
   Target,
-  TrendingUp,
-  Play,
+  Clock,
+  CheckCircle,
+  Zap,
+  Download,
+  Share2,
   RotateCcw,
+  Play,
+  Pause,
+  Settings,
+  Upload,
+  TrendingUp,
 } from 'lucide-react';
+import { AIGenerationSkeleton } from '@/components/skeletons';
 
 export const Route = createFileRoute('/ai-generation')({ component: AIGenerationPage });
 
 function AIGenerationPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [sourceText, setSourceText] = useState('');
   const [flashcardCount, setFlashcardCount] = useState('10');
   const [quizLength, setQuizLength] = useState('5');
   const [difficulty, setDifficulty] = useState('medium');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1300);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <AIGenerationSkeleton />;
+  }
 
   const recentFlashcards = [
     {
