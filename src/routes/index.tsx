@@ -6,7 +6,7 @@ import { AnimatedGroup } from '@/components/ui/animated-group';
 import { cn } from '@/utils/css';
 import { Mail, Menu, SendHorizonal, X, UserCircle, BookOpen } from 'lucide-react';
 import React from 'react';
-import { Link, createFileRoute } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import TeamSection from '@/components/team';
 import FooterSection from '@/components/footer';
 import Features from '@/components/features-12';
@@ -275,5 +275,24 @@ const HeroSection = () => {
 };
 
 function Index() {
+	const { isSignedIn, isLoaded } = useAuth();
+	const navigate = useNavigate();
+
+	React.useEffect(() => {
+		if (isLoaded && isSignedIn) {
+			navigate({ to: '/dashboard' });
+		}
+	}, [isSignedIn, isLoaded, navigate]);
+
+	// Show loading or nothing while checking auth status
+	if (!isLoaded) {
+		return null;
+	}
+
+	// Only render the landing page if user is not signed in
+	if (isSignedIn) {
+		return null;
+	}
+
 	return <HeroSection />;
 }
