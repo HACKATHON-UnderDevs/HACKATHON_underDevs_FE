@@ -1,3 +1,4 @@
+skip_clone: true
 when:
   - event: pull_request
     branch: main
