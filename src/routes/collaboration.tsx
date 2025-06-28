@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import {
   Card,
@@ -281,63 +281,85 @@ function CollaborationPage() {
             <TabsContent value="groups" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {studyGroups.map((group) => (
-                  <Card key={group.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={group.avatar} />
-                            <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <CardTitle className="text-lg leading-tight flex items-center gap-2">
-                              {group.name}
-                              {group.isOwner && <Crown className="h-4 w-4 text-yellow-500" />}
-                            </CardTitle>
-                            <Badge variant="secondary">{group.subject}</Badge>
+                  <Link
+                    to="/notes"
+                    search={{ groupId: group.id.toString() }}
+                    key={group.id}
+                    className="block"
+                  >
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={group.avatar} />
+                              <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <CardTitle className="text-lg leading-tight flex items-center gap-2">
+                                {group.name}
+                                {group.isOwner && <Crown className="h-4 w-4 text-yellow-500" />}
+                              </CardTitle>
+                              <Badge variant="secondary">{group.subject}</Badge>
+                            </div>
                           </div>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {group.description}
-                      </p>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {group.members} members
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {group.lastActivity}
-                          </span>
-                        </div>
-                        {group.nextSession && (
-                          <div className="flex items-center gap-1 text-xs text-blue-600">
-                            <Calendar className="h-3 w-3" />
-                            Next session: {new Date(group.nextSession).toLocaleDateString()}
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {group.description}
+                        </p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {group.members} members
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {group.lastActivity}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="pt-0">
-                      <div className="flex gap-2 w-full">
-                        <Button size="sm" className="flex-1">
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Chat
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1">
-                          <Video className="h-4 w-4 mr-2" />
-                          Join
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
+                          {group.nextSession && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600">
+                              <Calendar className="h-3 w-3" />
+                              Next session: {new Date(group.nextSession).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                      <CardFooter className="pt-0">
+                        <div className="flex gap-2 w-full">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              // Placeholder for chat functionality
+                            }}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Chat
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              // Placeholder for join functionality
+                            }}
+                          >
+                            <Video className="h-4 w-4 mr-2" />
+                            Join
+                          </Button>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             </TabsContent>

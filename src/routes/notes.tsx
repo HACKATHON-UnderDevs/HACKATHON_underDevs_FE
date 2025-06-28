@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useMemo, useEffect } from 'react';
+import { z } from 'zod';
 import {
   AppSidebar,
 } from '@/components/app-sidebar';
@@ -10,10 +11,11 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
-import { ChevronLeft, Search, Filter, Plus } from 'lucide-react';
+import { ChevronLeft, Search, Filter, Plus, Settings, UserPlus } from 'lucide-react';
 import { MantineProvider } from '@mantine/core';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -21,10 +23,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 // Component Imports
-import { NoteCard, NoteCardSkeleton } from '@/components/notes/NoteCard';
-import { NoteDetailView, NoteDetailViewSkeleton } from '@/components/notes/NoteDetailView';
+import { NoteCard } from '@/components/notes/NoteCard';
+import { NoteDetailView } from '@/components/notes/NoteDetailView';
 import { NotesSkeleton } from '@/components/skeletons/NotesSkeleton';
 
 
@@ -43,6 +53,7 @@ export interface LectureNote {
   isFavorite: boolean;
   category: string;
   tags: string[];
+  collaborationId?: string;
   uploadedDocuments: Array<{
     id: string;
     name: string;
@@ -52,6 +63,7 @@ export interface LectureNote {
 }
 
 // Mock data to power the UI until the API is connected
+// eslint-disable-next-line react-refresh/only-export-components
 export const mockLectureNotes: LectureNote[] = [
   {
     id: 'note-1',
@@ -68,6 +80,7 @@ export const mockLectureNotes: LectureNote[] = [
     createdAt: '2024-05-20T10:00:00Z',
     updatedAt: '2024-05-20T11:30:00Z',
     userId: 'user-123',
+    collaborationId: '1',
     uploadedDocuments: [
       { id: 'doc-1', name: 'lecture1_slides.ppt', type: 'ppt', url: '#' },
     ],
@@ -84,14 +97,25 @@ export const mockLectureNotes: LectureNote[] = [
     createdAt: '2024-05-18T14:00:00Z',
     updatedAt: '2024-05-18T15:00:00Z',
     userId: 'user-123',
+    collaborationId: '2',
     uploadedDocuments: [],
   },
 ];
 
 const categories = ['All', 'AI', 'Algorithms', 'Mathematics', 'History'];
+const studyGroups = [
+  { id: '1', name: 'Biology Study Group' },
+  { id: '2', name: 'Math Homework Help' },
+  { id: '3', name: 'Physics Lab Partners' },
+];
+
+const notesSearchSchema = z.object({
+  groupId: z.string().optional().catch(undefined),
+});
 
 // --- TanStack Route Definition ---
 export const Route = createFileRoute('/notes')({
+  validateSearch: notesSearchSchema,
   component: NotesPage,
 });
 
@@ -101,6 +125,7 @@ function NotesPage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const { groupId } = Route.useSearch();
 
   useEffect(() => {
     // Simulate API fetch
@@ -120,9 +145,10 @@ function NotesPage() {
     return notes.filter(note => {
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'All' || note.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesGroup = !groupId || note.collaborationId === groupId;
+      return matchesSearch && matchesCategory && matchesGroup;
     });
-  }, [notes, searchTerm, selectedCategory]);
+  }, [notes, searchTerm, selectedCategory, groupId]);
 
   const selectedNote = useMemo(() => {
     return notes.find((note) => note.id === selectedNoteId);
@@ -154,7 +180,8 @@ function NotesPage() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       userId: 'user-123', // Placeholder
-      uploadedDocuments: []
+      uploadedDocuments: [],
+      collaborationId: groupId,
     };
     setNotes(prev => [newNote, ...prev]);
     setSelectedNoteId(newNote.id);
@@ -229,13 +256,69 @@ function NotesPage() {
             )}
 
             {selectedNote ? (
-              <MantineProvider>
-                <NoteDetailView
-                  key={selectedNote.id}
-                  note={selectedNote}
-                  onUpdateNote={handleUpdateNote}
-                />
-              </MantineProvider>
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">{selectedNote.title}</h2>
+                    <p className="text-sm text-muted-foreground">{selectedNote.courseName}</p>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Note Settings</DialogTitle>
+                        <DialogDescription>
+                          Manage sharing and collaboration for this note.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="collaboration-group">Collaboration Group</Label>
+                          <Select
+                            value={selectedNote.collaborationId || 'none'}
+                            onValueChange={(value) => {
+                              handleUpdateNote({ collaborationId: value === 'none' ? undefined : value });
+                            }}
+                          >
+                            <SelectTrigger id="collaboration-group">
+                              <SelectValue placeholder="Assign to a group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Group</SelectItem>
+                              {studyGroups.map((group) => (
+                                <SelectItem key={group.id} value={group.id}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Invite User</Label>
+                          <div className="flex gap-2">
+                            <Input placeholder="Enter email to invite..." />
+                            <Button>
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Invite
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <MantineProvider>
+                  <NoteDetailView
+                    key={selectedNote.id}
+                    note={selectedNote}
+                    onUpdateNote={handleUpdateNote}
+                  />
+                </MantineProvider>
+              </>
             ) : (
               <div className="text-center py-10 flex flex-col items-center justify-center h-full">
                 <h2 className="text-2xl font-semibold text-gray-600">Select a note</h2>
