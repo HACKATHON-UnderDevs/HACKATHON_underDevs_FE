@@ -2,7 +2,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { SignUp } from "@clerk/clerk-react"; // Import SignUp component
-import logo_bean_journey from "@/images/logo_bean_journal.png";
+import logo from "@/images/logo-full-white.png";
 import Silk from "@/components/Silk/Silk"; // Added Silk import
 import { useState, useEffect } from "react";
 import { SignUpSkeleton } from "@/components/skeletons";
@@ -31,20 +31,21 @@ function RouteComponent() {
 
   // Key features, similar to sign-in page
   const keyFeatures = [
-    "Effortlessly log your daily reflections.",
-    "Track your mood and habits over time.",
-    "Gain insights with personalized statistics.",
+    "Create smart notes with AI assistance.",
+    "Generate flashcards automatically.",
+    "Collaborate with study partners in real-time.",
+    "Organize your study schedule efficiently.",
   ];
 
-  const journalStarters = [
-    "What are you grateful for today?",
-    "Describe a small moment of joy you experienced recently.",
-    "What's one thing you're looking forward to this week?",
-    "If you could learn one new skill, what would it be and why?",
-    "What activity makes you feel most like yourself?",
-    "Write about a place where you feel completely at peace."
+  const studyPrompts = [
+    "What subject are you most excited to master today?",
+    "Describe your ideal study environment.",
+    "What's one concept you want to understand better this week?",
+    "If you could collaborate with any study partner, who would it be and why?",
+    "What study technique works best for you?",
+    "Write about a time when learning something new felt rewarding."
   ];
-  const randomStarter = journalStarters[Math.floor(Math.random() * journalStarters.length)];
+  const randomPrompt = studyPrompts[Math.floor(Math.random() * studyPrompts.length)];
 
   return (
     <div className="relative grid min-h-screen place-items-center px-4 py-10">
@@ -64,9 +65,9 @@ function RouteComponent() {
           {/* Left Section: Text & Logo */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left py-4 md:flex-none md:w-2/5">
             <img
-              src={logo_bean_journey}
-              alt="Bean Journey Logo"
-              className="w-[11rem] h-[11rem] object-contain md:mx-0 md:-ml-6 md:-mt-12" // Matched sign-in logo style
+              src={logo}
+              alt="StudySync Logo"
+              className="w-[25rem] h-[11rem] object-contain md:mx-0 md:-ml-2 md:-mt-12" // Matched sign-in logo style
             />
             <h1 className="mt-4 text-2xl sm:text-3xl font-publica-sans font-semibold tracking-tight text-white">
               Create your account
@@ -75,19 +76,19 @@ function RouteComponent() {
               Let's get you started!
             </p>
             
-            {/* Journal Starter Section - Style Update */}
+            {/* Study Prompt Section - Style Update */}
             <div className="mt-8 p-4 bg-white/5 rounded-lg w-full max-w-xs md:max-w-sm text-center md:text-left">
-              <h3 className="font-semibold text-sm text-white/90 mb-1">Journal Starter:</h3>
-              <p className="text-sm text-white/95 italic font-medium">{randomStarter}</p> {/* Emphasized prompt */}
+              <h3 className="font-semibold text-sm text-white/90 mb-1">Study Prompt:</h3>
+              <p className="text-sm text-white/95 italic font-medium">{randomPrompt}</p> {/* Emphasized prompt */}
             </div>
 
-            {/* Why Bean Journal? Section - Style Update */}
+            {/* Why StudySync? Section - Style Update */}
             <div className="mt-6 p-4 bg-transparent border border-white/20 rounded-lg w-full max-w-xs md:max-w-sm text-center md:text-left">
               <h3 className="font-semibold text-sm text-white/90 mb-1">Why join us?</h3>
               <p className="text-xs text-gray-300/80">
-                We believe journaling should be as comforting as your morning brew. 
-                Our platform offers a simple, beautiful space for your daily thoughts, 
-                helping you cultivate mindfulness one entry at a time.
+                We believe studying should be smart, collaborative, and efficient. 
+                Our platform combines AI-powered tools with real-time collaboration 
+                to help you achieve your academic goals faster.
               </p>
             </div>
 

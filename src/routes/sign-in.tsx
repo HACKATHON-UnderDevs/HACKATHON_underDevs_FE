@@ -1,7 +1,7 @@
 "use client";
 
 import { createFileRoute } from "@tanstack/react-router";
-import logo_bean_journey from "@/images/logo_bean_journal.png";
+import logo from "@/images/logo-full-white.png";
 import { SignIn } from "@clerk/clerk-react";
 import Silk from "@/components/Silk/Silk";
 import { useState, useEffect } from "react";
@@ -30,11 +30,11 @@ function RouteComponent() {
   }
 
   const funFacts = [
-    "Journaling can reduce stress and improve your mood.",
-    "The world consumes over 2.25 billion cups of coffee every day.",
-    "Keeping a journal can boost your memory and cognitive functions.",
-    "Brazil is the largest coffee-producing country in the world.",
-    "Reflective writing in a journal can lead to better problem-solving skills.",
+    "Active recall can improve retention by up to 50%.",
+    "Students who use flashcards score 23% higher on tests.",
+    "Collaborative study sessions boost understanding by 40%.",
+    "Spaced repetition is proven to enhance long-term memory.",
+    "AI-generated study materials save 60% of preparation time.",
   ];
   const randomFact = funFacts[Math.floor(Math.random() * funFacts.length)];
 
@@ -56,9 +56,9 @@ function RouteComponent() {
           {/* Left Section: Text & Logo */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left py-4 md:flex-none md:w-2/5">
             <img
-              src={logo_bean_journey}
-              alt="Bean Journey Logo"
-              className="w-[11rem] h-[11rem] object-contain md:mx-0 md:-ml-6 md:-mt-12"
+              src={logo}
+              alt="StudySync Logo"
+              className="w-[25rem] h-[11rem] object-contain md:mx-0 md:-ml-2 md:-mt-12"
             />
             <h1 className="mt-4 text-2xl sm:text-3xl font-publica-sans font-semibold tracking-tight text-white">
               Sign in to your account
@@ -76,9 +76,10 @@ function RouteComponent() {
             <div className="mt-6 p-4 w-full max-w-xs md:max-w-sm text-center md:text-left">
               <h3 className="font-semibold text-sm text-white/90 mb-2">What awaits you:</h3>
               <ul className="space-y-1.5 text-xs text-gray-300/80 list-inside list-disc marker:text-green-300/70">
-                <li>Effortlessly log your daily reflections.</li>
-                <li>Track your mood and habits over time.</li>
-                <li>Gain insights with personalized statistics.</li>
+                <li>Create smart notes with AI assistance.</li>
+                <li>Generate flashcards automatically.</li>
+                <li>Collaborate with study partners in real-time.</li>
+                <li>Organize your study schedule efficiently.</li>
               </ul>
             </div>
           </div>
