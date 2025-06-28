@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/Button';
 import { TextEffect } from '@/components/ui/text-effect';
 import { AnimatedGroup } from '@/components/ui/animated-group';
 import { cn } from '@/utils/css';
-import { Mail, Menu, SendHorizonal, X } from 'lucide-react';
+import { Mail, Menu, SendHorizonal, X, UserCircle, BookOpen } from 'lucide-react';
 import React from 'react';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import TeamSection from '@/components/team';
 import FooterSection from '@/components/footer';
 import Features from '@/components/features-12';
+import { UserButton, useAuth } from '@clerk/clerk-react';
 
 export const Route = createFileRoute("/")({component: Index});
 
@@ -39,6 +40,7 @@ const transitionVariants = {
 const HeroHeader = () => {
     const [menuState, setMenuState] = React.useState(false);
     const [isScrolled, setIsScrolled] = React.useState(false);
+    const { isSignedIn } = useAuth();
 
     React.useEffect(() => {
         const handleScroll = () => {
@@ -72,33 +74,58 @@ const HeroHeader = () => {
                         </div>
 
                         <div className="bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent">
-                            <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                                <Button
-                                    asChild
-                                    variant="outline"
-                                    size="sm"
-                                    className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link to="/sign-in">
-                                        <span>Login</span>
-                                    </Link>
-                                </Button>
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link to="/sign-up">
-                                        <span>Sign Up</span>
-                                    </Link>
-                                </Button>
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <Link to="/dashboard">
-                                        <span>Get Started</span>
-                                    </Link>
-                                </Button>
-                            </div>
+                            {isSignedIn ? (
+                                <UserButton
+                                    afterSignOutUrl="/"
+                                    showName
+                                    appearance={{
+                                        elements: {
+                                            avatarBox: "w-8 h-8"
+                                        }
+                                    }}
+                                >
+                                    <UserButton.MenuItems>
+                                        <UserButton.Link
+                                            label="Dashboard"
+                                            labelIcon={<UserCircle size={16} />}
+                                            href="/dashboard"
+                                        />
+                                        <UserButton.Link
+                                            label="Notes"
+                                            labelIcon={<BookOpen size={16} />}
+                                            href="/notes"
+                                        />
+                                    </UserButton.MenuItems>
+                                </UserButton>
+                            ) : (
+                                <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <Link to="/sign-in">
+                                            <span>Login</span>
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <Link to="/sign-up">
+                                            <span>Sign Up</span>
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
+                                        <Link to="/dashboard">
+                                            <span>Get Started</span>
+                                        </Link>
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
