@@ -58,6 +58,17 @@ export function ClerkAndThemeProvider({ children }: { children: React.ReactNode 
 			// Explicitly define fallback URLs
 			signInFallbackRedirectUrl="/dashboard" // Where to go after successful sign-in
 			signUpFallbackRedirectUrl="/dashboard" // Where to go if sign-up needs completion (e.g., from SSO)
+			// SSO callback URLs
+			signInForceRedirectUrl="/dashboard" // Force redirect after sign-in
+			signUpForceRedirectUrl="/dashboard" // Force redirect after sign-up
+			// Additional SSO configuration
+			afterSignInUrl="/dashboard"
+			afterSignUpUrl="/dashboard"
+			// Handle SSO redirects properly
+			allowedRedirectOrigins={[
+				window.location.origin,
+				`${window.location.protocol}//${window.location.host}`
+			]}
 		>
 			<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
 			<SupabaseProvider>

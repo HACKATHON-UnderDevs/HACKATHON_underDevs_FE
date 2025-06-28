@@ -150,7 +150,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { isSignedIn, user } = useUser()
+  const { isSignedIn } = useUser()
 
   if (!isSignedIn) {
     return (
