@@ -1,3 +1,4 @@
+// src/utils/authUtils.ts
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -38,15 +39,11 @@ export function useAuthProtection() {
   useEffect(() => {
     if (!isLoaded) return;
     
-    // 1. Check if the current route is public
     const isPublicRoute = publicRoutes.some(route => 
       currentPath === route || currentPath.startsWith(`${route}/`)
     );
     
-    // 2. Protect non-public routes (middleware-like functionality)
     if (!isPublicRoute && !isSignedIn) {
-      // If not authenticated and trying to access a protected route, 
-      // redirect to login with the intended destination
       navigate({ 
         to: getEnvVar("SIGN_IN_URL", "/login"), 
         search: { redirect: currentPath } 
@@ -54,9 +51,7 @@ export function useAuthProtection() {
       return;
     }
     
-    // 3. Handle authenticated users on auth pages
     if (isSignedIn) {
-      // If user is already signed in and on an auth page, redirect to destination
       if (currentPath === "/login" || currentPath === "/sign-in" || currentPath === "/sign-up" || currentPath === "/sign-up/continue") {
         navigate({ to: getEnvVar("AFTER_SIGN_IN_URL", "/dashboard") });
         return;
@@ -64,7 +59,6 @@ export function useAuthProtection() {
     }
   }, [isLoaded, isSignedIn, currentPath, navigate, userId]);
   
-  // Expose the auth state for components to use
   return {
     isLoaded,
     isSignedIn,
