@@ -23,18 +23,6 @@ function SSOCallback() {
     return () => clearTimeout(timeout);
   }, []);
 
-  const handleSignInCallback = () => {
-    setIsLoading(false);
-    // Navigate to dashboard after successful authentication
-    navigate({ to: "/dashboard" });
-  };
-
-  const handleError = (error: any) => {
-    console.error("SSO Callback Error:", error);
-    setError(error?.message || "An error occurred during sign in. Please try again.");
-    setIsLoading(false);
-  };
-
   if (error) {
     return (
       <div className="relative grid min-h-screen place-items-center px-4 py-10">
@@ -92,7 +80,6 @@ function SSOCallback() {
           afterSignUpUrl="/dashboard"
           redirectUrl="/dashboard"
           continueSignUpUrl="/dashboard"
-          onError={handleError}
         />
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -49,13 +49,28 @@ import {
   Pause,
   RotateCcw,
 } from 'lucide-react';
+import { StudyScheduleSkeleton } from '@/components/skeletons';
 
 export const Route = createFileRoute('/study-schedule')({ component: StudySchedulePage });
 
 function StudySchedulePage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [studyDuration, setStudyDuration] = useState('30');
   const [isStudySessionActive, setIsStudySessionActive] = useState(false);
   const [sessionTimer] = useState(1800); // 30 minutes in seconds
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <StudyScheduleSkeleton />;
+  }
   
   const upcomingReviews = [
     {

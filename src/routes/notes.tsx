@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -29,24 +29,39 @@ import {
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
 import {
-  Plus,
   Search,
-  Filter,
-  BookOpen,
-  Calendar,
-  Tag,
+  Plus,
   Star,
   Archive,
-  Edit3,
+  Filter,
   Trash2,
+  Tag,
+  Calendar,
+  BookOpen,
+  Edit3,
   Share2,
 } from 'lucide-react';
+import { NotesSkeleton } from '@/components/skeletons';
 
 export const Route = createFileRoute('/notes')({ component: NotesPage });
 
 function NotesPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <NotesSkeleton />;
+  }
 
   const notes = [
     {
