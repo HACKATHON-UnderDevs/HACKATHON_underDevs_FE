@@ -13,6 +13,7 @@ steps:
       ENVI:
         from_secret: ENVIRONMENT
     commands:
+      - git clone https://github.com/HACKATHON-UnderDevs/HACKATHON_underDevs_FE.git
       - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
       - export NVM_DIR="$HOME/.nvm" # Or wherever nvm is installed
       - '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' # This loads nvm
