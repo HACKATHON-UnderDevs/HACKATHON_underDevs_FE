@@ -1,3 +1,4 @@
+// src/components/app-sidebar.tsx
 import * as React from "react"
 import {
   ArrowUpCircleIcon,
@@ -15,6 +16,7 @@ import {
   UsersIcon,
   UserCircle,
   Palette,
+  SwordsIcon,
 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { UserButton, useUser } from "@clerk/clerk-react"
@@ -63,6 +65,11 @@ const data = {
       title: "Collaboration",
       url: "/collaboration",
       icon: UsersIcon,
+    },
+    {
+      title: "Multiplayer Quiz",
+      url: "/quiz",
+      icon: SwordsIcon,
     },
   ],
   navClouds: [

@@ -1,3 +1,4 @@
+// src/main.tsx
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter, useNavigate } from "@tanstack/react-router";
@@ -10,6 +11,7 @@ import { ThemeProvider } from "@/components/shared/ThemeProvider";
 // Import the Supabase Providers
 import { SupabaseProvider } from './contexts/SupabaseContext';
 import { SupportSupabaseProvider } from './contexts/SupportSupabaseContext';
+import { GamifySupabaseProvider } from './contexts/GamifySupabaseContext'; // Import the new provider
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
@@ -58,23 +60,14 @@ export function ClerkAndThemeProvider({ children }: { children: React.ReactNode 
 			// Explicitly define fallback URLs
 			signInFallbackRedirectUrl="/dashboard" // Where to go after successful sign-in
 			signUpFallbackRedirectUrl="/dashboard" // Where to go if sign-up needs completion (e.g., from SSO)
-			// SSO callback URLs
-			signInForceRedirectUrl="/dashboard" // Force redirect after sign-in
-			signUpForceRedirectUrl="/dashboard" // Force redirect after sign-up
-			// Additional SSO configuration
-			afterSignInUrl="/dashboard"
-			afterSignUpUrl="/dashboard"
-			// Handle SSO redirects properly
-			allowedRedirectOrigins={[
-				window.location.origin,
-				`${window.location.protocol}//${window.location.host}`
-			]}
 		>
 			<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
 			<SupabaseProvider>
 				<SupportSupabaseProvider>
-					{children}
-					<Toaster />
+					<GamifySupabaseProvider> {/* Add the new provider here */}
+						{children}
+						<Toaster />
+					</GamifySupabaseProvider>
 				</SupportSupabaseProvider>
 			</SupabaseProvider>
 			</ThemeProvider>
