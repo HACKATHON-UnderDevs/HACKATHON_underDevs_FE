@@ -1,7 +1,7 @@
 export { DashboardSkeleton } from './DashboardSkeleton';
 export { NotesSkeleton } from './NotesSkeleton';
 export { AIGenerationSkeleton } from './AIGenerationSkeleton';
-export { CollaborationSkeleton } from './CollaborationSkeleton';
+export { WorkspaceSkeleton } from './WorkspaceSkeleton';
 export { StudyScheduleSkeleton } from './StudyScheduleSkeleton';
 
 export { LoginSkeleton } from './LoginSkeleton';

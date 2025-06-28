@@ -64,11 +64,11 @@ import {
   Edit,
   Crown,
 } from 'lucide-react';
-import { CollaborationSkeleton } from '@/components/skeletons';
+import { WorkspaceSkeleton } from '@/components/skeletons';
 
-export const Route = createFileRoute('/collaboration')({ component: CollaborationPage });
+export const Route = createFileRoute('/workspace')({ component: WorkspacePage });
 
-function CollaborationPage() {
+function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
@@ -88,7 +88,7 @@ function CollaborationPage() {
   }, []);
 
   if (isLoading) {
-    return <CollaborationSkeleton />;
+    return <WorkspaceSkeleton />;
   }
 
   const studyGroups = [
@@ -202,7 +202,7 @@ function CollaborationPage() {
         <SiteHeader />
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <div className="flex items-center justify-between space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight">Collaboration</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Workspace</h2>
             <div className="flex gap-2">
               <Dialog>
                 <DialogTrigger asChild>
