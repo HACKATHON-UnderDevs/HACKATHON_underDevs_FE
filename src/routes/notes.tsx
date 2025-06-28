@@ -1,22 +1,19 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// src/routes/notes.tsx
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  AppSidebar,
+} from '@/components/app-sidebar';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+  SidebarInset,
+  SidebarProvider,
+} from '@/components/ui/sidebar';
+import { SiteHeader } from '@/components/site-header';
+import { ChevronLeft, Search, Filter, Plus } from 'lucide-react';
+import { MantineProvider } from '@mantine/core';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -24,77 +21,108 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
-import { SiteHeader } from '@/components/site-header';
-import {
-  Search,
-  Plus,
-  Star,
-  Archive,
-  Filter,
-  Trash2,
-  Tag,
-  Calendar,
-  BookOpen,
-  Edit3,
-  Share2,
-} from 'lucide-react';
-import { NotesSkeleton } from '@/components/skeletons';
 
-export const Route = createFileRoute('/notes')({ component: NotesPage });
+// Component Imports
+import { NoteCard, NoteCardSkeleton } from '@/components/notes/NoteCard';
+import { NoteDetailView, NoteDetailViewSkeleton } from '@/components/notes/NoteDetailView';
+import { NotesSkeleton } from '@/components/skeletons/NotesSkeleton';
+
+
+// --- Template Data (will be replaced by API calls) ---
+
+// Represents a single lecture note or document
+export interface LectureNote {
+  id: string;
+  title: string;
+  courseName: string;
+  content: string; // JSON string from BlockNote
+  summary?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  isFavorite: boolean;
+  category: string;
+  tags: string[];
+  uploadedDocuments: Array<{
+    id: string;
+    name: string;
+    type: 'pdf' | 'docx' | 'txt' | 'ppt';
+    url: string;
+  }>;
+}
+
+// Mock data to power the UI until the API is connected
+export const mockLectureNotes: LectureNote[] = [
+  {
+    id: 'note-1',
+    title: 'Week 1: Introduction to Neural Networks',
+    courseName: 'AI Fundamentals',
+    content: JSON.stringify([
+      { type: 'heading', level: 1, content: 'Introduction to Neural Networks' },
+      { type: 'paragraph', content: 'A neural network is a series of algorithms that...' },
+    ]),
+    category: 'AI',
+    tags: ['neural-networks', 'deep-learning'],
+    isFavorite: true,
+    summary: 'An overview of neural networks.',
+    createdAt: '2024-05-20T10:00:00Z',
+    updatedAt: '2024-05-20T11:30:00Z',
+    userId: 'user-123',
+    uploadedDocuments: [
+      { id: 'doc-1', name: 'lecture1_slides.ppt', type: 'ppt', url: '#' },
+    ],
+  },
+  {
+    id: 'note-2',
+    title: 'Data Structures: Trees and Graphs',
+    courseName: 'Advanced Algorithms',
+    content: JSON.stringify([{ type: 'heading', level: 1, content: 'Trees and Graphs' }]),
+    category: 'Algorithms',
+    tags: ['data-structures', 'graphs'],
+    isFavorite: false,
+    summary: 'A look at non-linear data structures.',
+    createdAt: '2024-05-18T14:00:00Z',
+    updatedAt: '2024-05-18T15:00:00Z',
+    userId: 'user-123',
+    uploadedDocuments: [],
+  },
+];
+
+const categories = ['All', 'AI', 'Algorithms', 'Mathematics', 'History'];
+
+// --- TanStack Route Definition ---
+export const Route = createFileRoute('/notes')({
+  component: NotesPage,
+});
 
 function NotesPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [notes, setNotes] = useState<LectureNote[]>([]);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
-    // Simulate loading time
+    // Simulate API fetch
     const timer = setTimeout(() => {
+      setNotes(mockLectureNotes);
+      // Select the first note by default if the list is not empty
+      if (mockLectureNotes.length > 0) {
+        setSelectedNoteId(mockLectureNotes[0].id);
+      }
       setIsLoading(false);
     }, 1200);
 
     return () => clearTimeout(timer);
   }, []);
 
-  if (isLoading) {
-    return <NotesSkeleton />;
-  }
-
-  const notes = [
-    {
-      id: 1,
-      title: 'Biology Chapter 5: Cell Structure',
-      content: 'Key concepts about mitochondria, nucleus, and cell membrane...',
-      category: 'Biology',
-      tags: ['cells', 'organelles', 'exam-prep'],
-      lastModified: '2024-01-15',
-      isFavorite: true,
-    },
-    {
-      id: 2,
-      title: 'Math: Calculus Derivatives',
-      content: 'Rules for finding derivatives, chain rule, product rule...',
-      category: 'Mathematics',
-      tags: ['calculus', 'derivatives', 'formulas'],
-      lastModified: '2024-01-14',
-      isFavorite: false,
-    },
-    {
-      id: 3,
-      title: 'History: World War II Timeline',
-      content: 'Important dates and events during WWII...',
-      category: 'History',
-      tags: ['timeline', 'wwii', 'dates'],
-      lastModified: '2024-01-13',
-      isFavorite: true,
-    },
-  ];
-
-  const categories = ['all', 'Biology', 'Mathematics', 'History', 'Physics', 'Chemistry'];
+  const filteredNotes = useMemo(() => {
+    return notes.filter(note => {
+      const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || note.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [notes, searchTerm, selectedCategory]);
 
   const selectedNote = useMemo(() => {
     return notes.find((note) => note.id === selectedNoteId);
@@ -104,23 +132,25 @@ function NotesPage() {
     setSelectedNoteId(id);
   };
 
-  const handleUpdateNote = (updatedNote: Partial<LectureNote>) => {
-    // This function simulates updating a note in the local state.
-    // Later, this will be an API call.
+  const handleUpdateNote = (updatedNoteData: Partial<LectureNote>) => {
     setNotes(prevNotes =>
       prevNotes.map(note =>
-        note.id === selectedNoteId ? { ...note, ...updatedNote, updatedAt: new Date().toISOString() } : note
+        note.id === selectedNoteId 
+          ? { ...note, ...updatedNoteData, updatedAt: new Date().toISOString() } 
+          : note
       )
     );
   };
 
-  // A placeholder for creating a new note
   const handleCreateNewNote = () => {
     const newNote: LectureNote = {
       id: `note-${Date.now()}`,
       title: "Untitled Note",
       courseName: "New Course",
       content: '[]',
+      category: 'Uncategorized',
+      tags: [],
+      isFavorite: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       userId: 'user-123', // Placeholder
@@ -131,26 +161,7 @@ function NotesPage() {
   };
 
   if (isLoading) {
-    return (
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <SiteHeader />
-          <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-100px)]">
-            <aside className="w-full md:w-1/3 lg:w-1/4 p-4 border-r overflow-y-auto">
-              <div className="space-y-4">
-                <NoteCardSkeleton />
-                <NoteCardSkeleton />
-                <NoteCardSkeleton />
-              </div>
-            </aside>
-            <main className="flex-1 w-full md:w-2/3 lg:w-3/4 p-4 md:p-8 overflow-y-auto">
-              <NoteDetailViewSkeleton />
-            </main>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    );
+    return <NotesSkeleton />;
   }
 
   return (
@@ -158,23 +169,50 @@ function NotesPage() {
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-100px)]">
-          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r overflow-y-auto ${selectedNoteId ? 'hidden md:block' : 'block'}`}>
-            <header className="mb-6">
-              <h1 className="text-xl font-semibold text-gray-700">My Notes</h1>
-              <Button onClick={handleCreateNewNote} className="w-full mt-3">
-                + Create New Note
-              </Button>
+        <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-3rem)]">
+          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r flex flex-col ${selectedNoteId ? 'hidden md:flex' : 'flex'}`}>
+            <header className="mb-4">
+              <h1 className="text-xl font-semibold text-gray-800 mb-4">My Notes</h1>
+              <div className="relative mb-4">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search notes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-full">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                 <Button onClick={handleCreateNewNote} size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    New
+                </Button>
+              </div>
             </header>
-            <div className="space-y-3">
-              {notes.map(note => (
+            <div className="space-y-3 overflow-y-auto flex-grow">
+              {filteredNotes.length > 0 ? filteredNotes.map(note => (
                 <NoteCard
                   key={note.id}
                   note={note}
                   onSelectNote={handleSelectNote}
                   isSelected={note.id === selectedNoteId}
                 />
-              ))}
+              )) : (
+                 <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
+              )}
             </div>
           </aside>
 
@@ -201,7 +239,7 @@ function NotesPage() {
             ) : (
               <div className="text-center py-10 flex flex-col items-center justify-center h-full">
                 <h2 className="text-2xl font-semibold text-gray-600">Select a note</h2>
-                <p className="text-gray-500 mt-2">Choose a note from the list to view its content, or create a new one.</p>
+                <p className="text-gray-500 mt-2">Choose a note from the list to view or create a new one.</p>
               </div>
             )}
           </main>

@@ -3,7 +3,9 @@
 // src/components/notes/NoteDetailView.tsx
 import { useState, useEffect, useMemo, forwardRef } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
-import { useCreateBlockNote, BlockNoteViewRaw } from "@blocknote/react";
+import { useCreateBlockNote } from "@blocknote/react";
+import { BlockNoteView } from "@blocknote/mantine";
+import "@blocknote/mantine/style.css";
 import type { PartialBlock } from "@blocknote/core";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -88,7 +90,7 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
         <div className="bg-white rounded-xl shadow-lg flex flex-col h-full">
             <NoteHeader title={note.title} onTitleChange={(newTitle) => onUpdateNote({ title: newTitle })} />
             <div className="flex-grow p-4 overflow-y-auto">
-                <BlockNoteViewRaw editor={editor} onChange={debouncedEditorUpdate} />
+                <BlockNoteView editor={editor} onChange={debouncedEditorUpdate} />
             </div>
             <footer className="p-4 border-t">
                 <h4 className="text-sm font-semibold mb-2">Uploaded Documents</h4>
