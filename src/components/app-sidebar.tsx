@@ -14,6 +14,7 @@ import {
   SettingsIcon,
   UsersIcon,
 } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -43,22 +44,22 @@ const data = {
     },
     {
       title: "My Notes",
-      url: "#",
+      url: "/notes",
       icon: FileTextIcon,
     },
     {
       title: "AI Generation",
-      url: "#",
+      url: "/ai-generation",
       icon: FileCodeIcon,
     },
     {
       title: "Study Schedule",
-      url: "#",
+      url: "/study-schedule",
       icon: ListIcon,
     },
     {
       title: "Collaboration",
-      url: "#",
+      url: "/collaboration",
       icon: UsersIcon,
     },
   ],
@@ -156,10 +157,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
+              <Link to="/dashboard">
                 <ArrowUpCircleIcon className="h-5 w-5" />
                 <span className="text-base font-semibold">LearnSmart AI</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
