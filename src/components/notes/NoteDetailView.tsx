@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/rules-of-hooks */
 // src/components/notes/NoteDetailView.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import {
   BlockNoteEditor,
@@ -33,6 +33,28 @@ import { createGroq } from "@ai-sdk/groq";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/supabase/supabase";
+import * as Y from "yjs";
+import YPartyKitProvider from "y-partykit/provider";
+import { useUser } from "@clerk/clerk-react";
+
+const userColors = [
+  "#ff6b6b",
+  "#f06595",
+  "#cc5de8",
+  "#845ef7",
+  "#5c7cfa",
+  "#339af0",
+  "#22b8cf",
+  "#20c997",
+  "#51cf66",
+  "#94d82d",
+  "#fcc419",
+  "#ff922b",
+  "#ff6b6b",
+];
+
+const getRandomColor = () =>
+  userColors[Math.floor(Math.random() * userColors.length)];
 
 // Use an "open" model such as llama, in this case via groq.com
 const client = createBlockNoteAIClient({
@@ -122,18 +144,43 @@ function SuggestionMenuWithAI(props: { editor: BlockNoteEditor }) {
 }
 
 export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
-  const editor = useCreateBlockNote({
-    dictionary: {
-      ...en,
-      ai: aiEn, // add default translations for the AI extension
+  const { user } = useUser();
+  const doc = useMemo(() => new Y.Doc(), []);
+  const contentRestored = useRef(false);
+
+  const provider = useMemo(() => {
+    if (!note.id || !doc) return null;
+    // TODO: Use a production-ready PartyKit URL
+    return new YPartyKitProvider(
+      "blocknote-dev.yousefed.partykit.dev",
+      note.id,
+      doc
+    );
+  }, [note.id, doc]);
+
+  const editor = useCreateBlockNote(
+    {
+      collaboration: {
+        provider: provider!,
+        fragment: doc.getXmlFragment("document-store"),
+        user: {
+          name: user?.fullName || "Anonymous",
+          color: getRandomColor(),
+        },
+      },
+      dictionary: {
+        ...en,
+        ai: aiEn, // add default translations for the AI extension
+      },
+      // Register the AI extension
+      extensions: [
+        createAIExtension({
+          model,
+        }),
+      ],
     },
-    // Register the AI extension
-    extensions: [
-      createAIExtension({
-        model,
-      }),
-    ],
-  });
+    [provider, doc, user]
+  );
 
   // Memoize the initial content to prevent re-initialization on every render
   const initialContent = useMemo((): PartialBlock[] | undefined => {
@@ -151,17 +198,35 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
 
   // Replace content only when the note ID changes
   useEffect(() => {
-    if (editor.document) {
-      // Ensure editor is initialized
-      if (initialContent) {
-        editor.replaceBlocks(editor.document, initialContent);
-      } else {
-        // Clear editor if there's no content or it's invalid
-        editor.replaceBlocks(editor.document, []);
-      }
+    if (!editor || !initialContent || !provider || contentRestored.current) {
+      return;
     }
+
+    const onSync = (synced: boolean) => {
+      if (synced && !contentRestored.current) {
+        const yDocFragment = doc.getXmlFragment("document-store");
+
+        if (yDocFragment.length === 0) {
+          console.log("Restoring content from database...");
+          editor.replaceBlocks(editor.document, initialContent);
+        } else {
+          console.log("Content already exists in collaboration document.");
+        }
+        contentRestored.current = true;
+      }
+    };
+
+    provider.on("sync", onSync);
+    provider.connect();
+
+    // Reset contentRestored flag when note changes
+    return () => {
+      provider.off("sync", onSync);
+      provider.disconnect();
+      contentRestored.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note.id, editor]);
+  }, [note.id, editor, initialContent, provider, doc]);
 
   const handleEditorChange = () => {
     const newContent = JSON.stringify(editor.document, null, 2);
