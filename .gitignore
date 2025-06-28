@@ -22,11 +22,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< Updated upstream
 .env
-=======
-
-.env
-
-src/routeTree.gen.ts
->>>>>>> Stashed changes
