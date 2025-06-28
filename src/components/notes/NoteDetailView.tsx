@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/rules-of-hooks */
 // src/components/notes/NoteDetailView.tsx
-import { useState, useEffect, useMemo, forwardRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";

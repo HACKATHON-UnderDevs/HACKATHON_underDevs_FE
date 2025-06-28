@@ -1,5 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { BarChart3, Database, Fingerprint, User } from 'lucide-react'
+import { BarChart3, FileText, Zap, Users } from 'lucide-react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { BorderBeam } from '@/components/magicui/border-beam'
@@ -15,19 +15,19 @@ export default function Features() {
     const images = {
         'item-1': {
             image: feature1,
-            alt: 'Smart Analytics Dashboard',
+            alt: 'Smart Notes Interface',
         },
         'item-2': {
             image: feature2,
-            alt: 'Secure Access Control',
+            alt: 'AI Flashcard Generation',
         },
         'item-3': {
             image: feature3,
-            alt: 'User Management Interface',
+            alt: 'Real-time Collaboration',
         },
         'item-4': {
             image: feature4,
-            alt: 'Performance Tracking Metrics',
+            alt: 'Study Schedule Dashboard',
         },
     }
 
@@ -49,38 +49,38 @@ export default function Features() {
                         <AccordionItem value="item-1">
                             <AccordionTrigger>
                                 <div className="flex items-center gap-2 text-base">
-                                    <Database className="size-4" />
-                                    Smart Analytics
+                                    <FileText className="size-4" />
+                                    Smart Notes
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent>Get powerful insights with our advanced analytics dashboard. Track performance, monitor trends, and make data-driven decisions with real-time visualizations.</AccordionContent>
+                            <AccordionContent>Create, organize, and manage your study notes with our intelligent note-taking system. Rich text editing, tagging, and search capabilities help you stay organized.</AccordionContent>
                         </AccordionItem>
                         <AccordionItem value="item-2">
                             <AccordionTrigger>
                                 <div className="flex items-center gap-2 text-base">
-                                    <Fingerprint className="size-4" />
-                                    Secure Access
+                                    <Zap className="size-4" />
+                                    AI Flashcard Generation
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent>Enterprise-grade security with multi-factor authentication, role-based access control, and advanced encryption to keep your data safe and secure.</AccordionContent>
+                            <AccordionContent>Transform your notes into interactive flashcards automatically using AI. Enhance your learning with spaced repetition and adaptive study algorithms.</AccordionContent>
                         </AccordionItem>
                         <AccordionItem value="item-3">
                             <AccordionTrigger>
                                 <div className="flex items-center gap-2 text-base">
-                                    <User className="size-4" />
-                                    User Management
+                                    <Users className="size-4" />
+                                    Real-time Collaboration
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent>Streamlined user management with intuitive profile controls, team collaboration tools, and seamless onboarding experiences for all users.</AccordionContent>
+                            <AccordionContent>Work together with classmates and study groups in real-time. Share notes, collaborate on projects, and learn together with seamless team features.</AccordionContent>
                         </AccordionItem>
                         <AccordionItem value="item-4">
                             <AccordionTrigger>
                                 <div className="flex items-center gap-2 text-base">
                                     <BarChart3 className="size-4" />
-                                    Performance Tracking
+                                    Study Schedule
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent>Monitor your progress with comprehensive performance metrics, detailed reports, and customizable dashboards that help you optimize your workflow.</AccordionContent>
+                            <AccordionContent>Plan and track your study sessions with intelligent scheduling. Set goals, monitor progress, and optimize your learning routine with personalized insights.</AccordionContent>
                         </AccordionItem>
                     </Accordion>
 
