@@ -1,6 +1,5 @@
 import * as React from "react"
 import {
-  ArrowUpCircleIcon,
   CameraIcon,
   ClipboardListIcon,
   DatabaseIcon,
@@ -169,9 +168,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link to="/dashboard">
-                <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">LearnSmart AI</span>
+              <Link to="/">
+                <img 
+                  src="/src/images/logo-full.svg" 
+                  alt="LearnSmart AI Logo" 
+                  className="h-9 w-auto mx-auto brightness-0 dark:brightness-0 dark:invert" 
+                />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -194,7 +196,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     elements: {
                       avatarBox: "h-10 w-10 order-1",
                       userButtonOuterIdentifier:
-                        "text-left font-semibold text-base truncate order-2",
+                        "text-left font-semibold text-base truncate order-2 text-gray-900 dark:text-white",
                       userButtonBox: "flex w-full items-center gap-3",
                       userButtonTrigger:
                         "flex items-center w-full my-6 pr-12 pl-4",

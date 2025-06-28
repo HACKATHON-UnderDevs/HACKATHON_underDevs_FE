@@ -6,7 +6,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   Tabs,
@@ -38,14 +37,9 @@ import {
   FileText,
   Target,
   Clock,
-  CheckCircle,
   Zap,
-  Download,
-  Share2,
   RotateCcw,
   Play,
-  Pause,
-  Settings,
   Upload,
   TrendingUp,
 } from 'lucide-react';
@@ -66,7 +60,7 @@ function AIGenerationPage() {
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1300);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, []);

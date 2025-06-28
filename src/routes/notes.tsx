@@ -54,7 +54,7 @@ function NotesPage() {
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1200);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, []);

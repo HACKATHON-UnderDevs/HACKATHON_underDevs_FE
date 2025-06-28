@@ -19,7 +19,7 @@ export const Route = createRootRoute({
 				<ModeToggle />
 			</div>
 			<Outlet />
-			<TanStackRouterDevtools />
+			<TanStackRouterDevtools position="bottom-right" />
 		</ClerkAndThemeProvider>
 	),
 });
