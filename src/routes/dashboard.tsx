@@ -32,7 +32,7 @@ function Dashboard() {
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1500);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, []);

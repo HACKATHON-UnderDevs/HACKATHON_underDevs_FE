@@ -63,7 +63,7 @@ function StudySchedulePage() {
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 400);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, []);

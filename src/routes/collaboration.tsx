@@ -82,7 +82,7 @@ function CollaborationPage() {
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1400);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, []);

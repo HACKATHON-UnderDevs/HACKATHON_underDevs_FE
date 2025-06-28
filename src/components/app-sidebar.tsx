@@ -1,8 +1,6 @@
 // src/components/app-sidebar.tsx
 import * as React from "react"
 import {
-  ArrowUpCircleIcon,
-  CameraIcon,
   ClipboardListIcon,
   DatabaseIcon,
   FileCodeIcon,
@@ -10,7 +8,6 @@ import {
   FileTextIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
-  ListIcon,
   SearchIcon,
   SettingsIcon,
   UsersIcon,
@@ -18,7 +15,6 @@ import {
   Palette,
   SwordsIcon,
 } from "lucide-react"
-import { Link } from "@tanstack/react-router"
 import { UserButton, useUser } from "@clerk/clerk-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -34,20 +30,16 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+// Sample data for navigation
 const data = {
-  user: {
-    name: "Student",
-    email: "student@learningplatform.com",
-    avatar: "/avatars/student.jpg",
-  },
   navMain: [
     {
-      title: "Learning Dashboard",
+      title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboardIcon,
     },
     {
-      title: "My Notes",
+      title: "Notes",
       url: "/notes",
       icon: FileTextIcon,
     },
@@ -55,11 +47,6 @@ const data = {
       title: "AI Generation",
       url: "/ai-generation",
       icon: FileCodeIcon,
-    },
-    {
-      title: "Study Schedule",
-      url: "/study-schedule",
-      icon: ListIcon,
     },
     {
       title: "Collaboration",
@@ -70,94 +57,39 @@ const data = {
       title: "Multiplayer Quiz",
       url: "/quiz",
       icon: SwordsIcon,
+      title: "Study Schedule",
+      url: "/study-schedule",
+      icon: ClipboardListIcon,
     },
   ],
-  navClouds: [
+  documents: [
     {
-      title: "Flashcards",
-      icon: CameraIcon,
-      isActive: true,
+      name: "Recent Documents",
       url: "#",
-      items: [
-        {
-          title: "Review Queue",
-          url: "#",
-        },
-        {
-          title: "Mastered Cards",
-          url: "#",
-        },
-      ],
+      icon: FileIcon,
     },
     {
-      title: "Quizzes",
-      icon: FileTextIcon,
+      name: "Shared Files",
       url: "#",
-      items: [
-        {
-          title: "Practice Tests",
-          url: "#",
-        },
-        {
-          title: "Quiz History",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Study Groups",
-      icon: UsersIcon,
-      url: "#",
-      items: [
-        {
-          title: "My Groups",
-          url: "#",
-        },
-        {
-          title: "Join Group",
-          url: "#",
-        },
-      ],
+      icon: DatabaseIcon,
     },
   ],
   navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: SettingsIcon,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HelpCircleIcon,
-    },
     {
       title: "Search",
       url: "#",
       icon: SearchIcon,
     },
-  ],
-  documents: [
     {
-      name: "Study Materials",
+      title: "Help",
       url: "#",
-      icon: DatabaseIcon,
-    },
-    {
-      name: "Progress Reports",
-      url: "#",
-      icon: ClipboardListIcon,
-    },
-    {
-      name: "AI Assistant",
-      url: "#",
-      icon: FileIcon,
+      icon: HelpCircleIcon,
     },
   ],
-}
+};
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { isSignedIn } = useUser()
+export function AppSidebar({ ...props }) {
+  const { isSignedIn } = useUser();
 
   if (!isSignedIn) {
     return (
@@ -176,9 +108,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link to="/dashboard">
-                <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">LearnSmart AI</span>
+              <Link to="/">
+                <img 
+                  src="/src/images/logo-full.svg" 
+                  alt="LearnSmart AI Logo" 
+                  className="h-9 w-auto mx-auto brightness-0 dark:brightness-0 dark:invert" 
+                />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -201,7 +136,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     elements: {
                       avatarBox: "h-10 w-10 order-1",
                       userButtonOuterIdentifier:
-                        "text-left font-semibold text-base truncate order-2",
+                        "text-left font-semibold text-base truncate order-2 text-gray-900 dark:text-white",
                       userButtonBox: "flex w-full items-center gap-3",
                       userButtonTrigger:
                         "flex items-center w-full my-6 pr-12 pl-4",
