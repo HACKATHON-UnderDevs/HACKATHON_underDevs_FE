@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUser } from "@clerk/clerk-react";
 import { GameParticipant } from "@/types/gamify";
-import { Gamepad2, Play, Check, X } from 'lucide-react';
+import { Play, Check, X } from 'lucide-react';
 
 interface LobbyControlsProps {
   isHost: boolean;
