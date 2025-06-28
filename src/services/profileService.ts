@@ -25,6 +25,30 @@ export const getProfile = async (supabase: SupabaseClient, id: string): Promise<
 };
 
 /**
+ * Fetches a user profile by their email address.
+ * @param supabase - The Supabase client instance.
+ * @param email - The email of the profile to fetch.
+ * @returns The user profile, or null if not found.
+ */
+export const getProfileByEmail = async (supabase: SupabaseClient, email: string): Promise<Profile | null> => {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (error) {
+    // Don't log an error if the user is simply not found
+    if (error.code !== 'PGRST116') { // PGRST116 = "No rows found"
+      console.error('Error fetching profile by email:', error);
+    }
+    return null;
+  }
+
+  return data;
+};
+
+/**
  * Creates a new user profile. This is typically called after a new user signs up via Clerk.
  * @param supabase - The Supabase client instance.
  * @param profileData - The initial profile data.

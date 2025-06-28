@@ -49,7 +49,7 @@ export interface WorkspaceMember {
 // Based on LectureNote and the new workspace integration
 export interface Note {
     id: string; //uuid
-    user_id: string; // Corresponds to public.profiles(id)
+    owner_id: string; // Corresponds to public.profiles(id)
     title: string;
     content: string; // JSON from BlockNote
     file_path: string;

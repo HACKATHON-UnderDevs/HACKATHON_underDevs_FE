@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import {
   Card,
@@ -48,7 +48,6 @@ import {
   Share2,
   MessageCircle,
   Video,
-  Calendar,
   Clock,
   Settings,
   UserPlus,
@@ -65,8 +64,23 @@ import {
   Crown,
 } from 'lucide-react';
 import { WorkspaceSkeleton } from '@/components/skeletons';
+import { useSupabase } from '@/contexts/SupabaseContext';
+import { useAuth } from '@clerk/clerk-react';
+import {
+  createWorkspace,
+  getWorkspacesForUser,
+  addWorkspaceMember,
+  getWorkspaceMembers,
+} from '@/services/workspaceService';
+import { getProfileByEmail } from '@/services/profileService';
+import { Workspace } from '@/supabase/supabase';
 
 export const Route = createFileRoute('/workspace')({ component: WorkspacePage });
+
+type WorkspaceWithDetails = Workspace & {
+  membersCount: number;
+  isOwner: boolean;
+};
 
 function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -77,55 +91,100 @@ function WorkspacePage() {
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceWithDetails[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [
+    openInviteDialogForWorkspace,
+    setOpenInviteDialogForWorkspace,
+  ] = useState<string | null>(null);
+
+  const supabase = useSupabase();
+  const { userId } = useAuth();
+  const navigate = useNavigate();
+
+  const fetchWorkspaces = async () => {
+    if (userId && supabase) {
+      const data = await getWorkspacesForUser(supabase, userId);
+      if (data) {
+        const workspacesWithDetails = await Promise.all(
+          data.map(async (ws) => {
+            const members = await getWorkspaceMembers(supabase, ws.id);
+            return {
+              ...ws,
+              membersCount: members?.length ?? 0,
+              isOwner: ws.owner_id === userId,
+            };
+          })
+        );
+        setWorkspaces(workspacesWithDetails);
+      }
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 200);
+    fetchWorkspaces();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, supabase]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  const handleCreateGroup = async () => {
+    if (!newGroupName || !userId || !supabase) return;
+    setIsLoading(true);
+    const newWorkspace = await createWorkspace(supabase, {
+      name: newGroupName,
+      description: newGroupDescription,
+      owner_id: userId,
+    });
+
+    if (newWorkspace) {
+      await addWorkspaceMember(supabase, {
+        workspace_id: newWorkspace.id,
+        user_id: userId,
+        role: 'admin',
+      });
+      setNewGroupName('');
+      setNewGroupDescription('');
+      await fetchWorkspaces(); // Refetch workspaces
+    }
+    setIsLoading(false);
+    // How to close dialog? Assume it's handled.
+  };
+
+  const handleInviteMember = async (workspaceId: string) => {
+    if (!inviteEmail || !supabase) return;
+
+    const profileToInvite = await getProfileByEmail(supabase, inviteEmail);
+
+    if (!profileToInvite) {
+      alert('User with that email not found.'); // Replace with a toast notification
+      return;
+    }
+
+    const result = await addWorkspaceMember(supabase, {
+      workspace_id: workspaceId,
+      user_id: profileToInvite.id,
+      role: 'member',
+    });
+
+    if (result) {
+      alert('Member invited successfully!'); // Replace with a toast notification
+      setInviteEmail('');
+      setOpenInviteDialogForWorkspace(null);
+      await fetchWorkspaces(); // Refresh workspace data
+      navigate({
+        to: '/notes',
+        search: {
+          workspaceId,
+        },
+      });
+    } else {
+      alert('Failed to invite member.'); // Replace with a toast notification
+    }
+  };
 
   if (isLoading) {
     return <WorkspaceSkeleton />;
   }
-
-  const studyGroups = [
-    {
-      id: 1,
-      name: 'Biology Study Group',
-      description: 'Preparing for the upcoming biology exam',
-      members: 8,
-      isOwner: true,
-      lastActivity: '2 hours ago',
-      subject: 'Biology',
-      nextSession: '2024-01-17 14:00',
-      avatar: '/avatars/biology-group.jpg',
-    },
-    {
-      id: 2,
-      name: 'Math Homework Help',
-      description: 'Daily math problem solving sessions',
-      members: 12,
-      isOwner: false,
-      lastActivity: '1 day ago',
-      subject: 'Mathematics',
-      nextSession: '2024-01-18 16:00',
-      avatar: '/avatars/math-group.jpg',
-    },
-    {
-      id: 3,
-      name: 'Physics Lab Partners',
-      description: 'Collaborative physics experiments and discussions',
-      members: 6,
-      isOwner: false,
-      lastActivity: '3 days ago',
-      subject: 'Physics',
-      nextSession: '2024-01-19 10:00',
-      avatar: '/avatars/physics-group.jpg',
-    },
-  ];
 
   const activeCollaborators = [
     { name: 'Alice Johnson', status: 'online', avatar: '/avatars/alice.jpg', role: 'editor' },
@@ -255,7 +314,7 @@ function WorkspacePage() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit">
+                    <Button type="submit" onClick={handleCreateGroup}>
                       <Users className="h-4 w-4 mr-2" />
                       Create Group
                     </Button>
@@ -280,19 +339,22 @@ function WorkspacePage() {
             {/* Study Groups Tab */}
             <TabsContent value="groups" className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {studyGroups.map((group) => (
-                  <Link
-                    to="/notes"
-                    search={{ groupId: group.id.toString() }}
-                    key={group.id}
-                    className="block"
-                  >
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                {workspaces.map((group) => (
+                  <div key={group.id} className="block">
+                    <Card
+                      className="cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col"
+                      onClick={() => {
+                        navigate({
+                          to: '/notes',
+                          search: { workspaceId: group.id },
+                        });
+                      }}
+                    >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
                             <Avatar>
-                              <AvatarImage src={group.avatar} />
+                              <AvatarImage src={'/avatars/placeholder.jpg'} />
                               <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
@@ -300,15 +362,19 @@ function WorkspacePage() {
                                 {group.name}
                                 {group.isOwner && <Crown className="h-4 w-4 text-yellow-500" />}
                               </CardTitle>
-                              <Badge variant="secondary">{group.subject}</Badge>
+                              <Badge variant="secondary">{new Date(group.created_at).toLocaleDateString()}</Badge>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </div>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="flex-grow">
                         <p className="text-sm text-muted-foreground mb-3">
                           {group.description}
                         </p>
@@ -316,19 +382,13 @@ function WorkspacePage() {
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
-                              {group.members} members
+                              {group.membersCount} members
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {group.lastActivity}
+                              {new Date(group.updated_at).toLocaleDateString()}
                             </span>
                           </div>
-                          {group.nextSession && (
-                            <div className="flex items-center gap-1 text-xs text-blue-600">
-                              <Calendar className="h-3 w-3" />
-                              Next session: {new Date(group.nextSession).toLocaleDateString()}
-                            </div>
-                          )}
                         </div>
                       </CardContent>
                       <CardFooter className="pt-0">
@@ -337,7 +397,7 @@ function WorkspacePage() {
                             size="sm"
                             className="flex-1"
                             onClick={(e) => {
-                              e.preventDefault();
+                              e.stopPropagation();
                               // Placeholder for chat functionality
                             }}
                           >
@@ -349,17 +409,73 @@ function WorkspacePage() {
                             variant="outline"
                             className="flex-1"
                             onClick={(e) => {
-                              e.preventDefault();
+                              e.stopPropagation();
                               // Placeholder for join functionality
                             }}
                           >
                             <Video className="h-4 w-4 mr-2" />
                             Join
                           </Button>
+                          <Dialog
+                            open={openInviteDialogForWorkspace === group.id}
+                            onOpenChange={(isOpen) => {
+                              if (!isOpen) {
+                                setOpenInviteDialogForWorkspace(null);
+                                setInviteEmail('');
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenInviteDialogForWorkspace(group.id);
+                                }}
+                              >
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Invite
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Invite to {group.name}
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Enter the email of the user you want to
+                                  invite to this workspace.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <Label htmlFor="invite-email">Email</Label>
+                                <Input
+                                  id="invite-email"
+                                  type="email"
+                                  placeholder="user@example.com"
+                                  value={inviteEmail}
+                                  onChange={(e) =>
+                                    setInviteEmail(e.target.value)
+                                  }
+                                />
+                              </div>
+                              <DialogFooter>
+                                <Button
+                                  onClick={() => handleInviteMember(group.id)}
+                                >
+                                  Send Invite
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </CardFooter>
                     </Card>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </TabsContent>

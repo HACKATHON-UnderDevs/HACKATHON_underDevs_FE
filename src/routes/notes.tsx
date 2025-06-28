@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useMemo, useEffect } from 'react';
 import { z } from 'zod';
 import {
@@ -11,7 +11,7 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
-import { ChevronLeft, Search, Filter, Plus, Settings, UserPlus } from 'lucide-react';
+import { ChevronLeft, Search, Plus, Settings, Trash } from 'lucide-react';
 import { MantineProvider } from '@mantine/core';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,17 @@ import {
 import { NoteCard } from '@/components/notes/NoteCard';
 import { NoteDetailView } from '@/components/notes/NoteDetailView';
 import { NotesSkeleton } from '@/components/skeletons/NotesSkeleton';
+import { useSupabase } from '@/contexts/SupabaseContext';
+import { useAuth } from '@clerk/clerk-react';
+import { Note, Workspace } from '@/supabase/supabase';
+import {
+  getNotes,
+  getNotesInWorkspace,
+  createNote,
+  updateNote,
+  deleteNote,
+} from '@/services/noteService';
+import { getWorkspacesForUser } from '@/services/workspaceService';
 
 
 // --- Template Data (will be replaced by API calls) ---
@@ -62,55 +73,8 @@ export interface LectureNote {
   }>;
 }
 
-// Mock data to power the UI until the API is connected
-// eslint-disable-next-line react-refresh/only-export-components
-export const mockLectureNotes: LectureNote[] = [
-  {
-    id: 'note-1',
-    title: 'Week 1: Introduction to Neural Networks',
-    courseName: 'AI Fundamentals',
-    content: JSON.stringify([
-      { type: 'heading', level: 1, content: 'Introduction to Neural Networks' },
-      { type: 'paragraph', content: 'A neural network is a series of algorithms that...' },
-    ]),
-    category: 'AI',
-    tags: ['neural-networks', 'deep-learning'],
-    isFavorite: true,
-    summary: 'An overview of neural networks.',
-    createdAt: '2024-05-20T10:00:00Z',
-    updatedAt: '2024-05-20T11:30:00Z',
-    userId: 'user-123',
-    collaborationId: '1',
-    uploadedDocuments: [
-      { id: 'doc-1', name: 'lecture1_slides.ppt', type: 'ppt', url: '#' },
-    ],
-  },
-  {
-    id: 'note-2',
-    title: 'Data Structures: Trees and Graphs',
-    courseName: 'Advanced Algorithms',
-    content: JSON.stringify([{ type: 'heading', level: 1, content: 'Trees and Graphs' }]),
-    category: 'Algorithms',
-    tags: ['data-structures', 'graphs'],
-    isFavorite: false,
-    summary: 'A look at non-linear data structures.',
-    createdAt: '2024-05-18T14:00:00Z',
-    updatedAt: '2024-05-18T15:00:00Z',
-    userId: 'user-123',
-    collaborationId: '2',
-    uploadedDocuments: [],
-  },
-];
-
-const categories = ['All', 'AI', 'Algorithms', 'Mathematics', 'History'];
-const studyGroups = [
-  { id: '1', name: 'Biology Study Group' },
-  { id: '2', name: 'Math Homework Help' },
-  { id: '3', name: 'Physics Lab Partners' },
-];
-
 const notesSearchSchema = z.object({
-  groupId: z.string().optional().catch(undefined),
+  workspaceId: z.string().optional().catch(undefined),
 });
 
 // --- TanStack Route Definition ---
@@ -121,34 +85,53 @@ export const Route = createFileRoute('/notes')({
 
 function NotesPage() {
   const [isLoading, setIsLoading] = useState(true);
-  const [notes, setNotes] = useState<LectureNote[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const { groupId } = Route.useSearch();
+  const { workspaceId } = Route.useSearch();
+  const supabase = useSupabase();
+  const { userId } = useAuth();
+  const navigate = useNavigate();
+
+  const fetchNotes = async () => {
+    if (!supabase || !userId) return;
+    setIsLoading(true);
+
+    const fetchedNotes = workspaceId
+      ? await getNotesInWorkspace(supabase, workspaceId)
+      : await getNotes(supabase);
+
+    if (fetchedNotes) {
+      setNotes(fetchedNotes);
+      if (fetchedNotes.length > 0) {
+        setSelectedNoteId(fetchedNotes[0].id);
+      } else {
+        setSelectedNoteId(null);
+      }
+    }
+    setIsLoading(false);
+  };
+
+  const fetchWorkspaces = async () => {
+    if (!supabase || !userId) return;
+    const userWorkspaces = await getWorkspacesForUser(supabase, userId);
+    if (userWorkspaces) {
+      setWorkspaces(userWorkspaces);
+    }
+  };
 
   useEffect(() => {
-    // Simulate API fetch
-    const timer = setTimeout(() => {
-      setNotes(mockLectureNotes);
-      // Select the first note by default if the list is not empty
-      if (mockLectureNotes.length > 0) {
-        setSelectedNoteId(mockLectureNotes[0].id);
-      }
-      setIsLoading(false);
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, []);
+    fetchNotes();
+    fetchWorkspaces();
+  }, [workspaceId, supabase, userId]);
 
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || note.category === selectedCategory;
-      const matchesGroup = !groupId || note.collaborationId === groupId;
-      return matchesSearch && matchesCategory && matchesGroup;
+      return matchesSearch;
     });
-  }, [notes, searchTerm, selectedCategory, groupId]);
+  }, [notes, searchTerm]);
 
   const selectedNote = useMemo(() => {
     return notes.find((note) => note.id === selectedNoteId);
@@ -158,34 +141,45 @@ function NotesPage() {
     setSelectedNoteId(id);
   };
 
-  const handleUpdateNote = (updatedNoteData: Partial<LectureNote>) => {
-    setNotes(prevNotes =>
-      prevNotes.map(note =>
-        note.id === selectedNoteId 
-          ? { ...note, ...updatedNoteData, updatedAt: new Date().toISOString() } 
-          : note
-      )
-    );
+  const handleUpdateNote = async (updatedNoteData: Partial<Note>) => {
+    if (!selectedNoteId || !supabase) return;
+    const updatedNote = await updateNote(supabase, selectedNoteId, updatedNoteData);
+    if (updatedNote) {
+      setNotes(prevNotes =>
+        prevNotes.map(note =>
+          note.id === selectedNoteId ? updatedNote : note
+        )
+      );
+    }
   };
 
-  const handleCreateNewNote = () => {
-    const newNote: LectureNote = {
-      id: `note-${Date.now()}`,
+  const handleCreateNewNote = async () => {
+    if (!supabase || !userId) return;
+    const newNoteData: Partial<Note> = {
       title: "Untitled Note",
-      courseName: "New Course",
       content: '[]',
-      category: 'Uncategorized',
-      tags: [],
-      isFavorite: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      userId: 'user-123', // Placeholder
-      uploadedDocuments: [],
-      collaborationId: groupId,
+      owner_id: userId,
+      workspace_id: workspaceId,
+      metadata: { courseName: 'New Course' }
     };
-    setNotes(prev => [newNote, ...prev]);
-    setSelectedNoteId(newNote.id);
+    const newNote = await createNote(supabase, newNoteData);
+    if (newNote) {
+      setNotes(prev => [newNote, ...prev]);
+      setSelectedNoteId(newNote.id);
+    }
   };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!supabase) return;
+    const { error } = await deleteNote(supabase, noteId);
+    if (!error) {
+      const newNotes = notes.filter(n => n.id !== noteId);
+      setNotes(newNotes);
+      if (selectedNoteId === noteId) {
+          setSelectedNoteId(newNotes.length > 0 ? newNotes[0].id : null);
+      }
+    }
+  }
 
   if (isLoading) {
     return <NotesSkeleton />;
@@ -210,19 +204,7 @@ function NotesPage() {
                   />
               </div>
               <div className="flex items-center gap-2">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-full">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Button variant="outline" onClick={() => navigate({ to: '/notes' })}>All Notes</Button>
                  <Button onClick={handleCreateNewNote} size="sm">
                     <Plus className="h-4 w-4 mr-1" />
                     New
@@ -236,6 +218,7 @@ function NotesPage() {
                   note={note}
                   onSelectNote={handleSelectNote}
                   isSelected={note.id === selectedNoteId}
+                  onDeleteNote={handleDeleteNote}
                 />
               )) : (
                  <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
@@ -260,7 +243,9 @@ function NotesPage() {
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h2 className="text-2xl font-bold">{selectedNote.title}</h2>
-                    <p className="text-sm text-muted-foreground">{selectedNote.courseName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {((selectedNote.metadata as { courseName?: string })?.courseName) || 'No course'}
+                    </p>
                   </div>
                   <Dialog>
                     <DialogTrigger asChild>
@@ -272,40 +257,37 @@ function NotesPage() {
                       <DialogHeader>
                         <DialogTitle>Note Settings</DialogTitle>
                         <DialogDescription>
-                          Manage sharing and collaboration for this note.
+                          Move this note to a different workspace.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <Label htmlFor="collaboration-group">Collaboration Group</Label>
+                          <Label htmlFor="collaboration-group">Workspace</Label>
                           <Select
-                            value={selectedNote.collaborationId || 'none'}
+                            value={selectedNote.workspace_id || 'none'}
                             onValueChange={(value) => {
-                              handleUpdateNote({ collaborationId: value === 'none' ? undefined : value });
+                              handleUpdateNote({ workspace_id: value === 'none' ? undefined : value });
                             }}
                           >
                             <SelectTrigger id="collaboration-group">
-                              <SelectValue placeholder="Assign to a group" />
+                              <SelectValue placeholder="Assign to a workspace" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">No Group</SelectItem>
-                              {studyGroups.map((group) => (
-                                <SelectItem key={group.id} value={group.id}>
-                                  {group.name}
+                              <SelectItem value="none">No Workspace</SelectItem>
+                              {workspaces.map((ws) => (
+                                <SelectItem key={ws.id} value={ws.id}>
+                                  {ws.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label>Invite User</Label>
-                          <div className="flex gap-2">
-                            <Input placeholder="Enter email to invite..." />
-                            <Button>
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              Invite
+                        <div className="flex flex-col space-y-2">
+                          <Label>Delete Note</Label>
+                           <Button variant="destructive" onClick={() => handleDeleteNote(selectedNote.id)}>
+                              <Trash className="h-4 w-4 mr-2" />
+                              Delete this note
                             </Button>
-                          </div>
                         </div>
                       </div>
                     </DialogContent>

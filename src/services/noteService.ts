@@ -1,8 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Note } from '@/supabase/supabase';
 
-const TABLE_NAME = 'vibe_learning_gamify_quizz.notes';
-// const SCHEMA_NAME = 'vibe_learning_gamify_quizz';
+const TABLE_NAME = 'notes';
 
 /**
  * Fetches all notes accessible to the current user.

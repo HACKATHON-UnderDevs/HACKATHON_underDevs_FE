@@ -1,9 +1,8 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Workspace, WorkspaceMember, WorkspaceRole } from '@/supabase/supabase';
 
-const WORKSPACE_TABLE = 'vibe_learning_gamify_quizz.workspaces';
-const MEMBER_TABLE = 'vibe_learning_gamify_quizz.workspace_members';
-// const SCHEMA_NAME = 'vibe_learning_gamify_quizz';
+const WORKSPACE_TABLE = 'workspaces';
+const MEMBER_TABLE = 'workspace_members';
 
 // Workspace-related functions
 

@@ -1,12 +1,13 @@
 // src/components/notes/NoteCard.tsx
 import { cn } from "@/utils/css";
-import { Badge, BookOpen, FileText } from 'lucide-react';
-import type { LectureNote } from '@/routes/notes'; // Assuming the type is exported from notes.tsx
+import { BookOpen, Trash } from 'lucide-react';
+import type { Note } from '@/supabase/supabase';
 
 interface NoteCardProps {
-  note: LectureNote;
+  note: Note;
   onSelectNote: (id: string) => void;
   isSelected: boolean;
+  onDeleteNote: (id: string) => void;
 }
 
 // Helper to get a plain text snippet from the BlockNote JSON content
@@ -26,8 +27,9 @@ const getContentSnippet = (content: string | undefined): string => {
   }
 };
 
-export function NoteCard({ note, onSelectNote, isSelected }: NoteCardProps) {
+export function NoteCard({ note, onSelectNote, isSelected, onDeleteNote }: NoteCardProps) {
   const contentSnippet = getContentSnippet(note.content);
+  const courseName = (note.metadata as { courseName?: string })?.courseName || 'No Course';
 
   return (
     <div
@@ -41,17 +43,21 @@ export function NoteCard({ note, onSelectNote, isSelected }: NoteCardProps) {
         <h3 className="text-md font-semibold truncate text-gray-800 mr-2">
           {note.title}
         </h3>
-        {note.uploadedDocuments.length > 0 && (
-          <Badge className="text-xs">
-            <FileText className="h-3 w-3 mr-1" />
-            {note.uploadedDocuments.length}
-          </Badge>
-        )}
+        <button
+            onClick={(e) => {
+                e.stopPropagation(); // prevent selecting the note
+                onDeleteNote(note.id);
+            }}
+            className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-100"
+            aria-label="Delete note"
+        >
+            <Trash className="h-4 w-4" />
+        </button>
       </div>
 
       <div className="flex items-center text-xs text-gray-500 mb-2">
         <BookOpen size={14} className="mr-1.5 flex-shrink-0" />
-        <span className="truncate">{note.courseName}</span>
+        <span className="truncate">{courseName}</span>
       </div>
       
       <p className="text-xs text-gray-600 line-clamp-2">
@@ -59,7 +65,7 @@ export function NoteCard({ note, onSelectNote, isSelected }: NoteCardProps) {
       </p>
 
       <div className="text-right text-xs text-gray-400 mt-3">
-        {new Date(note.updatedAt).toLocaleDateString()}
+        {new Date(note.updated_at).toLocaleDateString()}
       </div>
     </div>
   );

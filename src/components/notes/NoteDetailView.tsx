@@ -31,11 +31,8 @@ import { en as aiEn } from "@blocknote/xl-ai/locales";
 import "@blocknote/xl-ai/style.css";
 import { createGroq } from "@ai-sdk/groq";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, X } from "lucide-react";
-import type { LectureNote } from "@/routes/notes";
+import type { Note } from "@/supabase/supabase";
 
 // Use an "open" model such as llama, in this case via groq.com
 const client = createBlockNoteAIClient({
@@ -51,8 +48,8 @@ const client = createBlockNoteAIClient({
   })("llama-3.3-70b-versatile");
 
 interface NoteDetailViewProps {
-  note: LectureNote;
-  onUpdateNote: (updatedNote: Partial<LectureNote>) => void;
+  note: Note;
+  onUpdateNote: (updatedNote: Partial<Note>) => void;
 }
 
 const NoteHeader = ({
@@ -204,24 +201,6 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
           <SuggestionMenuWithAI editor={editor} />
         </BlockNoteView>
       </div>
-      <footer className="p-4 border-t">
-        <h4 className="text-sm font-semibold mb-2">Uploaded Documents</h4>
-        <div className="flex flex-wrap gap-2">
-          {note.uploadedDocuments.map((doc) => (
-            <Badge key={doc.id} variant="secondary" className="pl-2 pr-1">
-              <FileText className="h-3 w-3 mr-1.5" />
-              {doc.name}
-              <button className="ml-1.5 rounded-full hover:bg-gray-300 p-0.5">
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-          <Button variant="outline" size="sm" className="text-xs h-6">
-            <Upload className="h-3 w-3 mr-1" />
-            Upload File
-          </Button>
-        </div>
-      </footer>
     </div>
   );
 }
