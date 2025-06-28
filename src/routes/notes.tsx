@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/select';
 
 // Component Imports
-import { NoteCard, NoteCardSkeleton } from '@/components/notes/NoteCard';
-import { NoteDetailView, NoteDetailViewSkeleton } from '@/components/notes/NoteDetailView';
+import { NoteCard } from '@/components/notes/NoteCard';
+import { NoteDetailView } from '@/components/notes/NoteDetailView';
 import { NotesSkeleton } from '@/components/skeletons/NotesSkeleton';
 
 
@@ -135,8 +135,8 @@ function NotesPage() {
   const handleUpdateNote = (updatedNoteData: Partial<LectureNote>) => {
     setNotes(prevNotes =>
       prevNotes.map(note =>
-        note.id === selectedNoteId 
-          ? { ...note, ...updatedNoteData, updatedAt: new Date().toISOString() } 
+        note.id === selectedNoteId
+          ? { ...note, ...updatedNoteData, updatedAt: new Date().toISOString() }
           : note
       )
     );
@@ -174,13 +174,13 @@ function NotesPage() {
             <header className="mb-4">
               <h1 className="text-xl font-semibold text-gray-800 mb-4">My Notes</h1>
               <div className="relative mb-4">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search notes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
-                  />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search notes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -196,9 +196,9 @@ function NotesPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                 <Button onClick={handleCreateNewNote} size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    New
+                <Button onClick={handleCreateNewNote} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  New
                 </Button>
               </div>
             </header>
@@ -211,7 +211,7 @@ function NotesPage() {
                   isSelected={note.id === selectedNoteId}
                 />
               )) : (
-                 <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
+                <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
               )}
             </div>
           </aside>
