@@ -1,14 +1,12 @@
 import * as React from "react"
 import {
   ArrowUpCircleIcon,
-  BarChartIcon,
   CameraIcon,
   ClipboardListIcon,
   DatabaseIcon,
   FileCodeIcon,
   FileIcon,
   FileTextIcon,
-  FolderIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
   ListIcon,
@@ -33,80 +31,80 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Student",
+    email: "student@learningplatform.com",
+    avatar: "/avatars/student.jpg",
   },
   navMain: [
     {
-      title: "Dashboard",
-      url: "#",
+      title: "Learning Dashboard",
+      url: "/dashboard",
       icon: LayoutDashboardIcon,
     },
     {
-      title: "Lifecycle",
+      title: "My Notes",
+      url: "#",
+      icon: FileTextIcon,
+    },
+    {
+      title: "AI Generation",
+      url: "#",
+      icon: FileCodeIcon,
+    },
+    {
+      title: "Study Schedule",
       url: "#",
       icon: ListIcon,
     },
     {
-      title: "Analytics",
-      url: "#",
-      icon: BarChartIcon,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: FolderIcon,
-    },
-    {
-      title: "Team",
+      title: "Collaboration",
       url: "#",
       icon: UsersIcon,
     },
   ],
   navClouds: [
     {
-      title: "Capture",
+      title: "Flashcards",
       icon: CameraIcon,
       isActive: true,
       url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "Review Queue",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Mastered Cards",
           url: "#",
         },
       ],
     },
     {
-      title: "Proposal",
+      title: "Quizzes",
       icon: FileTextIcon,
       url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "Practice Tests",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Quiz History",
           url: "#",
         },
       ],
     },
     {
-      title: "Prompts",
-      icon: FileCodeIcon,
+      title: "Study Groups",
+      icon: UsersIcon,
       url: "#",
       items: [
         {
-          title: "Active Proposals",
+          title: "My Groups",
           url: "#",
         },
         {
-          title: "Archived",
+          title: "Join Group",
           url: "#",
         },
       ],
@@ -131,17 +129,17 @@ const data = {
   ],
   documents: [
     {
-      name: "Data Library",
+      name: "Study Materials",
       url: "#",
       icon: DatabaseIcon,
     },
     {
-      name: "Reports",
+      name: "Progress Reports",
       url: "#",
       icon: ClipboardListIcon,
     },
     {
-      name: "Word Assistant",
+      name: "AI Assistant",
       url: "#",
       icon: FileIcon,
     },
@@ -160,7 +158,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">LearnSmart AI</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
