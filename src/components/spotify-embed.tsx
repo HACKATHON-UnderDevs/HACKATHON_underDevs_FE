@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Spotify } from "react-spotify-embed"
+// import { Spotify } from "react-spotify-embed"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ import {
 import { MusicIcon } from "lucide-react"
 
 export function SpotifyEmbed() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [playlistUrl, setPlaylistUrl] = useState(
     "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
   )
@@ -76,7 +77,7 @@ export function SpotifyEmbed() {
         </Popover>
       </div>
 
-      <Spotify wide link={playlistUrl} />
+      {/* <Spotify wide link={playlistUrl} /> */}
     </div>
   )
 } 

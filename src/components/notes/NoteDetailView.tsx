@@ -32,7 +32,15 @@ import { useUser } from "@clerk/clerk-react";
 import { useSupabase } from "@/contexts/SupabaseContext";
 import { uploadFile, getPublicUrl } from "@/services/storageService";
 import { Button } from "../ui/Button";
-import { History } from "lucide-react";
+import { History, Bot } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -216,6 +224,8 @@ export function NoteDetailView({
   const contentRestored = useRef(false);
   const lastDocumentState = useRef<PartialBlock[] | null>(null);
 
+  const aiExtension = useMemo(() => createAIExtension({ model }), []);
+
   // State for history tracking
   const [historyLog, setHistoryLog] = useState<HistoryItem[]>([]);
   const [users, setUsers] = useState<Map<number, UserInfo>>(new Map());
@@ -289,11 +299,7 @@ export function NoteDetailView({
         ai: aiEn, // add default translations for the AI extension
       },
       // Register the AI extension
-      extensions: [
-        createAIExtension({
-          model,
-        }),
-      ],
+      extensions: [aiExtension],
       uploadFile: async (file: File) => {
         if (!supabase) {
           toast.error("Connection not established. Cannot upload file.");
@@ -320,10 +326,11 @@ export function NoteDetailView({
         }
       },
     },
-    [provider, doc, user, supabase, note.id]
+    [provider, doc, user, supabase, note.id, aiExtension]
   );
 
   useEffect(() => {
+    console.log(editor);
     if (!doc || users.size === 0 || !editor) return;
 
     const handleTransaction = (transaction: Y.Transaction) => {
@@ -443,6 +450,25 @@ export function NoteDetailView({
         >
           <div className="flex items-center gap-2">
             {noteSettingsComponent}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  Chat with AI
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>AI Chat</DialogTitle>
+                  <DialogDescription>
+                    Chat with the AI to get help with your note.
+                  </DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
             <SheetTrigger asChild>
               <Button variant="outline" size="sm">
                 <History className="h-4 w-4 mr-2" />
