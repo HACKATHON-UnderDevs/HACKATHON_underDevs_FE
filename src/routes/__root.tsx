@@ -1,25 +1,31 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import { createRootRoute, Outlet } from '@tanstack/react-router';
+import { TanStackRouterDevtools } from '@tanstack/router-devtools';
+import { SupabaseProvider } from '@/contexts/SupabaseContext';
+import { StudySessionProvider } from '@/contexts/StudySessionContext';
+import { useAuthProtection } from '@/utils/authUtils';
 
 // components
 import { ModeToggle } from "@/components/shared/ModeToggle";
 import { ClerkAndThemeProvider } from "../main";
-import { useAuthProtection } from "@/utils/authUtils";
 
 function AuthProtector() {
 	useAuthProtection();
-	return null;
+	return <></>;
 }
 
 export const Route = createRootRoute({
 	component: () => (
 		<ClerkAndThemeProvider>
-			<AuthProtector />
-			<div className="absolute top-2 right-2 z-10">
-				<ModeToggle />
-			</div>
-			<Outlet />
-			<TanStackRouterDevtools position="bottom-right" />
+			<SupabaseProvider>
+				<StudySessionProvider>
+					<div className="absolute top-2 right-2 z-10">
+						<ModeToggle />
+					</div>
+					<AuthProtector />
+					<Outlet />
+					<TanStackRouterDevtools />
+				</StudySessionProvider>
+			</SupabaseProvider>
 		</ClerkAndThemeProvider>
 	),
 });

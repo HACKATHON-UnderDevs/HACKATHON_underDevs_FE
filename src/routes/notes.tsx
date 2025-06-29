@@ -7,6 +7,7 @@ import {
 import {
   SidebarInset,
   SidebarProvider,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
 import { ChevronLeft, Search, Plus, Settings, Trash, ArrowLeft } from 'lucide-react';
@@ -93,7 +94,15 @@ export const Route = createFileRoute('/notes')({
   component: NotesPage,
 });
 
-function NotesPage() {
+export function NotesPage() {
+  return (
+    <SidebarProvider>
+      <NotesPageContent />
+    </SidebarProvider>
+  );
+}
+
+function NotesPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [notes, setNotes] = useState<Note[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -103,7 +112,9 @@ function NotesPage() {
   const { workspaceId, noteId } = Route.useSearch();
   const supabase = useSupabase();
   const { userId } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const { state: sidebarState } = useSidebar();
+
 
   const fetchNotes = useCallback(async () => {
     if (!supabase || !userId) return;
@@ -117,14 +128,16 @@ function NotesPage() {
       setNotes(fetchedNotes);
       if (noteId && fetchedNotes.some(n => n.id === noteId)) {
         setSelectedNoteId(noteId);
-      } else if (fetchedNotes.length > 0) {
+      } else if (fetchedNotes.length > 0 && !noteId) {
         setSelectedNoteId(fetchedNotes[0].id);
+        navigate({ search: (prev) => ({ ...prev, noteId: fetchedNotes[0].id }), replace: true });
       } else {
         setSelectedNoteId(null);
       }
     }
     setIsLoading(false);
-  }, [supabase, userId, workspaceId, noteId]);
+  }, [supabase, userId, workspaceId, noteId, navigate]);
+
 
   const fetchWorkspaces = useCallback(async () => {
     if (!supabase || !userId) return;
@@ -157,7 +170,10 @@ function NotesPage() {
 
   const handleSelectNote = (id: string) => {
     setSelectedNoteId(id);
-    navigate({ search: (prev) => ({ ...prev, noteId: id }), replace: true });
+    navigate({
+      search: (prev) => ({ ...prev, noteId: id }),
+      replace: true,
+    });
   };
 
   const handleUpdateNote = async (updatedNoteData: Partial<Note>) => {
@@ -167,7 +183,11 @@ function NotesPage() {
       if (workspaceId && updatedNote.workspace_id !== workspaceId) {
         const newNotes = notes.filter((n) => n.id !== selectedNoteId);
         setNotes(newNotes);
-        setSelectedNoteId(newNotes.length > 0 ? newNotes[0].id : null);
+        if (newNotes.length > 0) {
+          handleSelectNote(newNotes[0].id);
+        } else {
+          setSelectedNoteId(null);
+        }
       } else {
         setNotes((prevNotes) =>
           prevNotes.map((note) =>
@@ -182,7 +202,7 @@ function NotesPage() {
     if (!supabase || !userId) return;
     const newNoteData: Partial<Note> = {
       title: "Untitled Note",
-      content: JSON.stringify(Array(10).fill({ type: "paragraph" })),
+      content: JSON.stringify([{ type: "paragraph", content: "" }]),
       owner_id: userId,
       workspace_id: workspaceId,
       metadata: { courseName: 'New Course' }
@@ -190,33 +210,40 @@ function NotesPage() {
     const newNote = await createNote(supabase, newNoteData);
     if (newNote) {
       setNotes(prev => [newNote, ...prev]);
-      setSelectedNoteId(newNote.id);
+      handleSelectNote(newNote.id);
     }
   };
 
-  const handleDeleteNote = async (noteId: string) => {
+  const handleDeleteNote = async (noteIdToDelete: string) => {
     if (!supabase) return;
-    const { error } = await deleteNote(supabase, noteId);
+    const { error } = await deleteNote(supabase, noteIdToDelete);
     if (!error) {
-      const newNotes = notes.filter(n => n.id !== noteId);
+      const newNotes = notes.filter(n => n.id !== noteIdToDelete);
       setNotes(newNotes);
-      if (selectedNoteId === noteId) {
-          setSelectedNoteId(newNotes.length > 0 ? newNotes[0].id : null);
+      if (selectedNoteId === noteIdToDelete) {
+          if (newNotes.length > 0) {
+            handleSelectNote(newNotes[0].id);
+          } else {
+            setSelectedNoteId(null);
+            navigate({ search: (prev) => ({...prev, noteId: undefined }) });
+          }
       }
     }
   }
+
+  const isSidebarCollapsed = sidebarState === 'collapsed';
 
   if (isLoading) {
     return <NotesSkeleton />;
   }
 
   return (
-    <SidebarProvider>
+    <>
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-3rem)]">
-          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r flex flex-col ${selectedNoteId ? 'hidden md:flex' : 'flex'}`}>
+          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r flex-col ${selectedNoteId ? 'hidden md:flex' : 'flex'} ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
             <header className="mb-4">
               <h1 className="text-xl font-semibold text-gray-800 mb-4">My Notes</h1>
               <div className="relative mb-4">
@@ -269,7 +296,14 @@ function NotesPage() {
             </div>
           </aside>
 
-          <main className={`flex-1 w-full md:w-2/3 lg:w-3/4 p-4 md:p-6 flex flex-col ${selectedNoteId ? 'flex' : 'hidden md:flex'}`}>
+          <main className={`flex-1 p-4 md:p-6 flex flex-col ${selectedNoteId ? 'flex' : 'hidden md:flex'} ${isSidebarCollapsed ? 'w-full' : 'md:w-2/3 lg:w-3/4'}`}>
+            {selectedNoteId && !selectedNote && (
+               <div className="text-center py-10 flex flex-col items-center justify-center h-full">
+                <h2 className="text-2xl font-semibold text-gray-600">Note not found</h2>
+                <p className="text-gray-500 mt-2">The selected note could not be found, or it is still loading.</p>
+               </div>
+            )}
+            
             {selectedNoteId && (
               <button
                 onClick={() => setSelectedNoteId(null)}
@@ -384,6 +418,6 @@ function NotesPage() {
           </main>
         </div>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }

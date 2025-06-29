@@ -9,17 +9,13 @@ import { en } from "@blocknote/core/locales";
 import "@blocknote/core/fonts/inter.css";
 import {
   useCreateBlockNote,
-  FormattingToolbar,
-  FormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
-  getFormattingToolbarItems,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import {
   AIMenuController,
-  AIToolbarButton,
   createAIExtension,
   createBlockNoteAIClient,
   getAISlashMenuItems,
@@ -37,7 +33,13 @@ import { useSupabase } from "@/contexts/SupabaseContext";
 import { uploadFile, getPublicUrl } from "@/services/storageService";
 import { Button } from "../ui/Button";
 import { History } from "lucide-react";
-import { cn } from "@/utils/css";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const userColors = [
   "#ff6b6b",
@@ -108,63 +110,42 @@ const getBlockText = (block: PartialBlock | undefined): string => {
   return `[${block.type} content]`;
 };
 
-function generateSummary(
+/**
+ * Generates a brief summary of the changes between two document states.
+ */
+const generateSummary = (
   oldDoc: PartialBlock[],
   newDoc: PartialBlock[]
-): string | null {
-  // Use JSON string comparison as a fast way to check for any change.
-  if (JSON.stringify(oldDoc) === JSON.stringify(newDoc)) {
-    return null;
-  }
+): string | null => {
+  const oldBlocks = new Map(oldDoc.map((b) => [b.id, b]));
+  const newBlocks = new Map(newDoc.map((b) => [b.id, b]));
+  const changes: string[] = [];
 
-  const oldBlockMap = new Map(oldDoc.map((b) => [b.id, b]));
-  const newBlockMap = new Map(newDoc.map((b) => [b.id, b]));
-
-  // Check for added blocks
-  for (const id of newBlockMap.keys()) {
-    if (!oldBlockMap.has(id)) {
-      const addedBlock = newBlockMap.get(id);
-      const text = getBlockText(addedBlock);
-      return `Added a '${
-        addedBlock?.type || "block"
-      }': "${text}${text.length === 40 ? '...' : ''}"`;
+  // Check for added/modified blocks
+  for (const [id, newBlock] of newBlocks.entries()) {
+    const oldBlock = oldBlocks.get(id);
+    if (!oldBlock) {
+      changes.push(`Added: "${getBlockText(newBlock)}"`);
+    } else if (
+      JSON.stringify(oldBlock.content) !== JSON.stringify(newBlock.content)
+    ) {
+      changes.push(`Modified: "${getBlockText(newBlock)}"`);
     }
+    oldBlocks.delete(id); // handled
   }
 
   // Check for deleted blocks
-  for (const id of oldBlockMap.keys()) {
-    if (!newBlockMap.has(id)) {
-      const deletedBlock = oldBlockMap.get(id);
-      const text = getBlockText(deletedBlock);
-      return `Deleted a '${
-        deletedBlock?.type || "block"
-      }': "${text}${text.length === 40 ? '...' : ''}"`;
-    }
+  for (const [, oldBlock] of oldBlocks.entries()) {
+    changes.push(`Deleted: "${getBlockText(oldBlock)}"`);
   }
 
-  // Check for modified blocks
-  for (const id of newBlockMap.keys()) {
-    const oldBlock = oldBlockMap.get(id);
-    const newBlock = newBlockMap.get(id);
-
-    if (oldBlock && newBlock) {
-      if (oldBlock.type !== newBlock.type) {
-        return `Changed a block to type '${newBlock.type}'.`;
-      }
-      // Simple text content comparison for paragraph-like blocks
-      const oldText = JSON.stringify(oldBlock.content);
-      const newText = JSON.stringify(newBlock.content);
-      if (oldText !== newText) {
-        const text = getBlockText(newBlock);
-        return `Edited a '${
-          newBlock.type
-        }': "${text}${text.length === 40 ? '...' : ''}"`;
-      }
-    }
-  }
-
-  return "Made an edit to the document.";
-}
+  if (changes.length === 0) return null;
+  if (changes.length > 2)
+    return `${changes.slice(0, 2).join(", ")} and ${
+      changes.length - 2
+    } other changes.`;
+  return changes.join(", ");
+};
 
 const NoteHeader = ({
   title,
@@ -204,21 +185,6 @@ const NoteHeader = ({
   );
 };
 
-// Formatting toolbar with the `AIToolbarButton` added
-function FormattingToolbarWithAI() {
-  return (
-    <FormattingToolbarController
-      formattingToolbar={() => (
-        <FormattingToolbar>
-          {...getFormattingToolbarItems()}
-          {/* Add the AI button */}
-          <AIToolbarButton />
-        </FormattingToolbar>
-      )}
-    />
-  );
-}
-
 // Slash menu with the AI option added
 function SuggestionMenuWithAI(props: { editor: BlockNoteEditor }) {
   return (
@@ -251,7 +217,6 @@ export function NoteDetailView({
   const lastDocumentState = useRef<PartialBlock[] | null>(null);
 
   // State for history tracking
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   const [historyLog, setHistoryLog] = useState<HistoryItem[]>([]);
   const [users, setUsers] = useState<Map<number, UserInfo>>(new Map());
   const userActionTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
@@ -470,7 +435,7 @@ export function NoteDetailView({
   const debouncedEditorUpdate = useDebouncedCallback(handleEditorChange, 2000);
 
   return (
-    <div className="flex h-full">
+    <Sheet>
       <div className="flex-1 bg-white rounded-xl shadow-lg flex flex-col min-w-0">
         <NoteHeader
           title={note.title}
@@ -478,14 +443,12 @@ export function NoteDetailView({
         >
           <div className="flex items-center gap-2">
             {noteSettingsComponent}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-            >
-              <History className="h-4 w-4 mr-2" />
-              {isHistoryOpen ? "Hide History" : "Show History"}
-            </Button>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                <History className="h-4 w-4 mr-2" />
+                History
+              </Button>
+            </SheetTrigger>
           </div>
         </NoteHeader>
         <div className="flex-grow p-4 overflow-y-auto">
@@ -493,62 +456,55 @@ export function NoteDetailView({
             theme="light"
             editor={editor}
             onChange={debouncedEditorUpdate}
-            formattingToolbar={false}
             slashMenu={false}
           >
-            <FormattingToolbarWithAI />
             <SuggestionMenuWithAI editor={editor!} />
             <AIMenuController />
           </BlockNoteView>
         </div>
       </div>
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out flex-shrink-0",
-          isHistoryOpen ? "w-72 ml-4" : "w-0"
-        )}
-      >
-        <div className="w-72 border-l p-4 flex flex-col h-full bg-white rounded-xl shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">History</h3>
-          <div className="flex gap-2 mb-4">
-            <Button
-              onClick={() => {
-                const historyArray = doc.getArray<HistoryItem>("note-history");
-                // This deletes all items from the shared array, syncing across clients.
-                historyArray.delete(0, historyArray.length);
-              }}
-              variant="outline"
-              className="flex-1"
-            >
-              Clear History
-            </Button>
-          </div>
-          <div className="space-y-3 overflow-y-auto flex-grow">
-            {historyLog.length > 0 ? (
-              historyLog.map((item, i) => (
-                <div key={i} className="text-sm p-2 rounded-md bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <span
-                      style={{ color: item.user.color, fontWeight: "bold" }}
-                    >
-                      {item.user.name}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(item.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mt-1">{item.summary}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center mt-4">
-                No recent changes.
-              </p>
-            )}
-          </div>
+      <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
+        <SheetHeader className="p-4 border-b">
+          <SheetTitle>History</SheetTitle>
+        </SheetHeader>
+        <div className="p-4">
+          <Button
+            onClick={() => {
+              const historyArray = doc.getArray<HistoryItem>("note-history");
+              // This deletes all items from the shared array, syncing across clients.
+              historyArray.delete(0, historyArray.length);
+            }}
+            variant="outline"
+            className="w-full"
+          >
+            Clear History
+          </Button>
         </div>
-      </div>
-    </div>
+        <div className="space-y-3 overflow-y-auto flex-grow p-4">
+          {historyLog.length > 0 ? (
+            historyLog.map((item, i) => (
+              <div key={i} className="text-sm p-2 rounded-md bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <span
+                    style={{ color: item.user.color, fontWeight: "bold" }}
+                  >
+                    {item.user.name}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(item.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <p className="text-gray-600 mt-1">{item.summary}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500 text-center mt-4">
+              No recent changes.
+            </p>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
