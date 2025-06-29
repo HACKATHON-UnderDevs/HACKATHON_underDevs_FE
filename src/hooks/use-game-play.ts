@@ -62,6 +62,7 @@ const gameService = {
         joined_at: p.joined_at,
         is_host: p.is_host ?? false,
         is_ready: p.is_ready ?? false,
+        final_rank: p.final_rank,
         username: p.profiles?.username ?? 'Player',
         avatar_url: p.profiles?.avatar_url,
         streak: 0,
