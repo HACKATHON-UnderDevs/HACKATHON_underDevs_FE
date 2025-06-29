@@ -13,6 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export interface BackendQuizRequest {
   quiz_id: string;
   note_content: string;
+  question_count?: number;
 }
 
 export interface BackendAnswer {
@@ -74,6 +75,64 @@ export interface GenerateQuizOptions {
   userId: string;
 }
 
+// Flashcard interfaces
+export interface BackendFlashcardRequest {
+  flashcard_set_id: string;
+  note_content: string;
+  card_count?: number;
+}
+
+export interface BackendFlashcard {
+  flashcard_set_id: string;
+  question: string;
+  answer: string;
+}
+
+export interface BackendFlashcardResponse {
+  flashcards: BackendFlashcard[];
+}
+
+export interface Flashcard {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface FlashcardSubmission {
+  id: string;
+  flashcard_set_id: string;
+  title: string;
+  subject?: string;
+  source_material: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  user_id: string;
+  created_at: string;
+}
+
+export interface GeneratedFlashcardSet {
+  id: string;
+  submission_id: string;
+  flashcard_set_id: string;
+  title: string;
+  subject?: string;
+  card_count: number;
+  user_id: string;
+  created_at: string;
+  flashcards?: Flashcard[];
+}
+
+export interface SavedFlashcardSet extends GeneratedFlashcardSet {
+  flashcards: Flashcard[];
+}
+
+export interface GenerateFlashcardOptions {
+  title: string;
+  subject?: string;
+  sourceText: string;
+  userId: string;
+  cardCount?: number;
+}
+
 export class QuizAPIService {
   private static readonly BACKEND_API_URL = 'http://127.0.0.1:8000';
 
@@ -125,6 +184,7 @@ export class QuizAPIService {
     subject?: string;
     sourceText: string;
     userId: string;
+    questionCount?: number;
   }): Promise<SavedQuiz> {
     try {
       // Step 1: Generate unique quiz ID
@@ -149,7 +209,8 @@ export class QuizAPIService {
       // Step 3: Call backend API
       const backendRequest: BackendQuizRequest = {
         quiz_id: quizId,
-        note_content: quizData.sourceText
+        note_content: quizData.sourceText,
+        question_count: quizData.questionCount || 5
       };
 
       const backendResponse = await this.callBackendAPI(backendRequest);
@@ -323,9 +384,207 @@ export class QuizAPIService {
     }
   }
 
-  static async generateFlashcards(): Promise<QuizQuestion[]> {
-    // Placeholder for flashcard generation
-    // This should be implemented similar to quiz generation
-    return [];
+  // Generate a unique flashcard set ID
+  private static generateFlashcardSetId(): string {
+    return `flashcard_set_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  // Call the backend API to generate flashcards
+  private static async callBackendFlashcardAPI(request: BackendFlashcardRequest): Promise<BackendFlashcardResponse> {
+    try {
+      const response = await fetch(`${this.BACKEND_API_URL}/flashcards`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data: BackendFlashcardResponse = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error calling backend flashcard API:', error);
+      throw new Error('Failed to generate flashcards from backend API');
+    }
+  }
+
+  // Convert backend flashcards to frontend format
+  private static convertBackendFlashcards(backendFlashcards: BackendFlashcard[]): Flashcard[] {
+    return backendFlashcards.map((bf, index) => ({
+      id: `flashcard_${index + 1}`,
+      question: bf.question,
+      answer: bf.answer,
+    }));
+  }
+
+  // Main method to create and generate flashcard set
+  static async saveFlashcardSetToDatabase(flashcardData: {
+    title: string;
+    subject?: string;
+    sourceText: string;
+    userId: string;
+    cardCount?: number;
+  }): Promise<SavedFlashcardSet> {
+    try {
+      // Step 1: Generate unique flashcard set ID
+      const flashcardSetId = this.generateFlashcardSetId();
+
+      // Step 2: Save initial submission to database
+      const { data: submission, error: submissionError } = await supabase
+        .from('flashcard_submissions')
+        .insert({
+          user_id: flashcardData.userId,
+          flashcard_title: flashcardData.title,
+          subject: flashcardData.subject,
+          source_material: flashcardData.sourceText,
+          flashcard_set_id: flashcardSetId,
+          status: 'processing'
+        })
+        .select()
+        .single();
+
+      if (submissionError) throw submissionError;
+
+      // Step 3: Call backend API
+      const backendRequest: BackendFlashcardRequest = {
+        flashcard_set_id: flashcardSetId,
+        note_content: flashcardData.sourceText,
+        card_count: flashcardData.cardCount || 10
+      };
+
+      const backendResponse = await this.callBackendFlashcardAPI(backendRequest);
+
+      // Step 4: Convert backend flashcards to frontend format
+      const flashcards = this.convertBackendFlashcards(backendResponse.flashcards);
+
+      // Step 5: Save generated flashcard set to database
+      const { data: generatedFlashcardSet, error: flashcardSetError } = await supabase
+        .from('generated_flashcard_sets')
+        .insert({
+          submission_id: submission.id,
+          flashcard_set_id: flashcardSetId,
+          user_id: flashcardData.userId,
+          title: flashcardData.title,
+          subject: flashcardData.subject,
+          card_count: flashcards.length
+        })
+        .select()
+        .single();
+
+      if (flashcardSetError) throw flashcardSetError;
+
+      // Step 6: Save flashcards
+      for (let i = 0; i < backendResponse.flashcards.length; i++) {
+        const backendFlashcard = backendResponse.flashcards[i];
+        
+        const { error: flashcardError } = await supabase
+          .from('flashcards')
+          .insert({
+            flashcard_set_id: generatedFlashcardSet.id,
+            backend_flashcard_set_id: flashcardSetId,
+            question: backendFlashcard.question,
+            answer: backendFlashcard.answer,
+            card_order: i + 1
+          });
+
+        if (flashcardError) throw flashcardError;
+      }
+
+      // Step 7: Update submission status
+      await supabase
+        .from('flashcard_submissions')
+        .update({ status: 'completed' })
+        .eq('id', submission.id);
+
+      // Return the complete saved flashcard set
+      return {
+        ...generatedFlashcardSet,
+        flashcards
+      };
+    } catch (error) {
+      console.error('Error in flashcard generation flow:', error);
+      throw new Error('Failed to generate and save flashcard set');
+    }
+  }
+
+  static async getUserFlashcardSets(userId: string): Promise<SavedFlashcardSet[]> {
+    try {
+      const { data, error } = await supabase
+        .from('generated_flashcard_sets')
+        .select(`
+          *,
+          flashcards(*)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data.map(flashcardSet => ({
+        ...flashcardSet,
+        flashcards: flashcardSet.flashcards.map((f: { 
+          id: string;
+          question: string;
+          answer: string;
+        }) => ({
+          id: f.id,
+          question: f.question,
+          answer: f.answer
+        }))
+      }));
+    } catch (error) {
+      console.error('Error fetching user flashcard sets:', error);
+      throw new Error('Failed to fetch user flashcard sets');
+    }
+  }
+
+  static async getFlashcardSetWithCards(flashcardSetId: string): Promise<SavedFlashcardSet | null> {
+    try {
+      const { data, error } = await supabase
+        .from('generated_flashcard_sets')
+        .select(`
+          *,
+          flashcards(*)
+        `)
+        .eq('id', flashcardSetId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null; // Flashcard set not found
+        }
+        throw error;
+      }
+
+      return {
+        ...data,
+        flashcards: data.flashcards.map((f: { 
+          id: string;
+          question: string;
+          answer: string;
+        }) => ({
+          id: f.id,
+          question: f.question,
+          answer: f.answer
+        }))
+      };
+    } catch (error) {
+      console.error('Error fetching flashcard set with cards:', error);
+      throw new Error('Failed to fetch flashcard set');
+    }
+  }
+
+  static async generateFlashcards(options: GenerateFlashcardOptions): Promise<Flashcard[]> {
+    try {
+      const savedFlashcardSet = await this.saveFlashcardSetToDatabase(options);
+      return savedFlashcardSet.flashcards;
+    } catch (error) {
+      console.error('Error generating flashcards:', error);
+      throw new Error('Failed to generate flashcards');
+    }
   }
 }

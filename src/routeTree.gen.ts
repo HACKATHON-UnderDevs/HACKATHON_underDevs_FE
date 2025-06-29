@@ -23,6 +23,7 @@ import { Route as SignUpSsoCallbackRouteImport } from './routes/sign-up/sso-call
 import { Route as SignInSsoCallbackRouteImport } from './routes/sign-in/sso-callback'
 import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
 import { Route as QuizQuizIdRouteImport } from './routes/quiz/$quizId'
+import { Route as FlashcardFlashcardSetIdRouteImport } from './routes/flashcard/$flashcardSetId'
 
 const WorkspaceRoute = WorkspaceRouteImport.update({
   id: '/workspace',
@@ -94,6 +95,11 @@ const QuizQuizIdRoute = QuizQuizIdRouteImport.update({
   path: '/$quizId',
   getParentRoute: () => QuizRoute,
 } as any)
+const FlashcardFlashcardSetIdRoute = FlashcardFlashcardSetIdRouteImport.update({
+  id: '/flashcard/$flashcardSetId',
+  path: '/flashcard/$flashcardSetId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
   '/workspace': typeof WorkspaceRoute
+  '/flashcard/$flashcardSetId': typeof FlashcardFlashcardSetIdRoute
   '/quiz/$quizId': typeof QuizQuizIdRoute
   '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
   '/workspace': typeof WorkspaceRoute
+  '/flashcard/$flashcardSetId': typeof FlashcardFlashcardSetIdRoute
   '/quiz/$quizId': typeof QuizQuizIdRoute
   '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRouteWithChildren
   '/study-schedule': typeof StudyScheduleRoute
   '/workspace': typeof WorkspaceRoute
+  '/flashcard/$flashcardSetId': typeof FlashcardFlashcardSetIdRoute
   '/quiz/$quizId': typeof QuizQuizIdRoute
   '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/study-schedule'
     | '/workspace'
+    | '/flashcard/$flashcardSetId'
     | '/quiz/$quizId'
     | '/quiz/$sessionId'
     | '/sign-in/sso-callback'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/study-schedule'
     | '/workspace'
+    | '/flashcard/$flashcardSetId'
     | '/quiz/$quizId'
     | '/quiz/$sessionId'
     | '/sign-in/sso-callback'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/study-schedule'
     | '/workspace'
+    | '/flashcard/$flashcardSetId'
     | '/quiz/$quizId'
     | '/quiz/$sessionId'
     | '/sign-in/sso-callback'
@@ -206,6 +218,7 @@ export interface RootRouteChildren {
   SignUpRoute: typeof SignUpRouteWithChildren
   StudyScheduleRoute: typeof StudyScheduleRoute
   WorkspaceRoute: typeof WorkspaceRoute
+  FlashcardFlashcardSetIdRoute: typeof FlashcardFlashcardSetIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -308,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizQuizIdRouteImport
       parentRoute: typeof QuizRoute
     }
+    '/flashcard/$flashcardSetId': {
+      id: '/flashcard/$flashcardSetId'
+      path: '/flashcard/$flashcardSetId'
+      fullPath: '/flashcard/$flashcardSetId'
+      preLoaderRoute: typeof FlashcardFlashcardSetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -356,6 +376,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignUpRoute: SignUpRouteWithChildren,
   StudyScheduleRoute: StudyScheduleRoute,
   WorkspaceRoute: WorkspaceRoute,
+  FlashcardFlashcardSetIdRoute: FlashcardFlashcardSetIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
