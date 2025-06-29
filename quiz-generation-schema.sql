@@ -31,6 +31,7 @@ CREATE TABLE public.generated_quizzes (
     submission_id UUID REFERENCES public.quiz_submissions(id) ON DELETE CASCADE,
     quiz_id VARCHAR(100) NOT NULL, -- Matches backend quiz_id
     user_id TEXT NOT NULL, -- Clerk user ID
+    note_id VARCHAR(100), -- Reference to the note this quiz was generated from
     title VARCHAR(255) NOT NULL,
     subject VARCHAR(100),
     question_count INTEGER NOT NULL DEFAULT 0,
@@ -79,6 +80,7 @@ CREATE INDEX idx_quiz_submissions_quiz_id ON public.quiz_submissions(quiz_id);
 CREATE INDEX idx_quiz_submissions_status ON public.quiz_submissions(status);
 CREATE INDEX idx_generated_quizzes_user_id ON public.generated_quizzes(user_id);
 CREATE INDEX idx_generated_quizzes_quiz_id ON public.generated_quizzes(quiz_id);
+CREATE INDEX idx_generated_quizzes_note_id ON public.generated_quizzes(note_id);
 CREATE INDEX idx_quiz_questions_quiz_id ON public.quiz_questions(quiz_id);
 CREATE INDEX idx_quiz_questions_backend_quiz_id ON public.quiz_questions(backend_quiz_id);
 CREATE INDEX idx_quiz_answers_question_id ON public.quiz_answers(question_id);

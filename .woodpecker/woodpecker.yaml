@@ -1,9 +1,3 @@
-when:
-  - event: pull_request
-    branch: main
-  - event: push
-    branch: main
-
 steps:
   - name: Building FE
     image: bash
@@ -12,7 +6,6 @@ steps:
       ENVI:
         from_secret: ENVIRONMENT
     commands:
-      - git clone https://github.com/HACKATHON-UnderDevs/HACKATHON_underDevs_FE.git
       - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
       - export NVM_DIR="$HOME/.nvm" # Or wherever nvm is installed
       - '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' # This loads nvm
@@ -21,6 +14,8 @@ steps:
       - nvm use node
       - corepack enable pnpm
       - echo "$ENVI" | sudo tee .env > /dev/null
+      - pnpm add @mantine/core
+      - pnpm add react-use-measure
       - pnpm install --no-frozen-lockfile
       - pnpm build
   - name: Deploy FE

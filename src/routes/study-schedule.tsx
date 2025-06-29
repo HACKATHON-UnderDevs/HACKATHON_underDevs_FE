@@ -240,7 +240,7 @@ function StudySchedulePage() {
                                 <CommandItem
                                   key={note.id}
                                   value={note.id}
-                                  onSelect={(currentValue) => {
+                                  onSelect={(currentValue: string) => {
                                     setSelectedNote(currentValue === selectedNote ? '' : currentValue);
                                     setIsComboboxOpen(false);
                                   }}
