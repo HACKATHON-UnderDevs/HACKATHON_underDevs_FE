@@ -59,3 +59,19 @@ export interface Note {
     updated_at: string; // TIMESTAMPTZ
     workspace_id?: string | null; // UUID, nullable
   }
+
+export type StudyPriority = 'low' | 'medium' | 'high';
+
+export interface StudySet {
+  id: string; // UUID
+  title: string;
+  part?: string | null;
+  user_id: string; // Corresponds to public.profiles(id)
+  note_id: string; // Corresponds to public.notes(id)
+  due_date?: string | null; // DATE
+  priority: StudyPriority;
+  item_count: number;
+  estimated_time_minutes?: number | null;
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
