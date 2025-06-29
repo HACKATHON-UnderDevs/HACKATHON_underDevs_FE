@@ -78,6 +78,7 @@ import {
 import { StudyScheduleSkeleton } from '@/components/skeletons';
 import { useSupabase } from '@/contexts/SupabaseContext';
 import { getStudySetsForUser } from '@/services/studySetService';
+import { useStudySchedule } from '@/hooks/use-study-schedule';
 import { StudySet, Note } from '@/supabase/supabase';
 import { useAuth } from '@clerk/clerk-react';
 import { getNotes } from '@/services/noteService';
@@ -96,6 +97,10 @@ function StudySchedulePage() {
   const [isNewSessionDialogOpen, setIsNewSessionDialogOpen] = useState(false);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+
+  const { createStudyScheduleForNote, isLoading: isCreatingSchedule, error: createScheduleError } = useStudySchedule();
 
   useEffect(() => {
     if (userId && supabase) {
@@ -121,6 +126,25 @@ function StudySchedulePage() {
     return <StudyScheduleSkeleton />;
   }
   
+  const handleScheduleSession = async () => {
+    const note = notes?.find(n => n.id === selectedNote);
+    if (note && startTime && endTime) {
+      const newSets = await createStudyScheduleForNote(note, startTime, endTime);
+      
+      if (newSets) {
+        // Optionally, refresh the study sets list to show the new schedule
+        if (supabase && userId) {
+            getStudySetsForUser(supabase, userId).then(setStudySets);
+        }
+        setIsNewSessionDialogOpen(false); // Close dialog on success
+        // Reset form
+        setSelectedNote('');
+        setStartTime('');
+        setEndTime('');
+      }
+    }
+  };
+
   const completedSessions = [
     {
       id: 1,
@@ -240,17 +264,32 @@ function StudySchedulePage() {
                     <Label htmlFor="start-time" className="text-right">
                       Start Time
                     </Label>
-                    <Input id="start-time" type="datetime-local" className="col-span-3" />
+                    <Input
+                      id="start-time"
+                      type="datetime-local"
+                      className="col-span-3"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="end-time" className="text-right">
                       End Time
                     </Label>
-                    <Input id="end-time" type="datetime-local" className="col-span-3" />
+                    <Input
+                      id="end-time"
+                      type="datetime-local"
+                      className="col-span-3"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                    />
                   </div>
+                  {createScheduleError && <p className="text-red-500 text-sm col-span-4">{createScheduleError.message}</p>}
                 </div>
                 <DialogFooter>
-                  <Button type="submit">Schedule Session</Button>
+                  <Button type="button" onClick={handleScheduleSession} disabled={isCreatingSchedule || !selectedNote || !startTime || !endTime}>
+                    {isCreatingSchedule ? 'Scheduling...' : 'Schedule Session'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
