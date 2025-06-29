@@ -26,6 +26,30 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
@@ -48,60 +72,55 @@ import {
   Play,
   Pause,
   RotateCcw,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { StudyScheduleSkeleton } from '@/components/skeletons';
+import { useSupabase } from '@/contexts/SupabaseContext';
+import { getStudySetsForUser } from '@/services/studySetService';
+import { StudySet, Note } from '@/supabase/supabase';
+import { useAuth } from '@clerk/clerk-react';
+import { getNotes } from '@/services/noteService';
 
 export const Route = createFileRoute('/study-schedule')({ component: StudySchedulePage });
 
 function StudySchedulePage() {
   const [isLoading, setIsLoading] = useState(true);
+  const supabase = useSupabase();
+  const { userId } = useAuth();
+  const [studySets, setStudySets] = useState<StudySet[] | null>(null);
+  const [notes, setNotes] = useState<Note[] | null>(null);
   const [studyDuration, setStudyDuration] = useState('30');
   const [isStudySessionActive, setIsStudySessionActive] = useState(false);
   const [sessionTimer] = useState(1800); // 30 minutes in seconds
+  const [isNewSessionDialogOpen, setIsNewSessionDialogOpen] = useState(false);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState('');
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
+    if (userId && supabase) {
+      setIsLoading(true);
+      Promise.all([
+        getStudySetsForUser(supabase, userId),
+        getNotes(supabase, userId),
+      ])
+        .then(([studySetsData, notesData]) => {
+          setStudySets(studySetsData);
+          setNotes(notesData);
+        })
+        .catch(console.error)
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else if (userId === null) {
       setIsLoading(false);
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, []);
+    }
+  }, [userId, supabase]);
 
   if (isLoading) {
     return <StudyScheduleSkeleton />;
   }
   
-  const upcomingReviews = [
-    {
-      id: 1,
-      title: 'Biology Cell Structure',
-      code: 'flashcards',
-      dueDate: '2024-01-16',
-      priority: 'high',
-      count: 15,
-      estimatedTime: 20,
-    },
-    {
-      id: 2,
-      title: 'Math Derivatives Quiz',
-      type: 'quiz',
-      dueDate: '2024-01-17',
-      priority: 'medium',
-      count: 10,
-      estimatedTime: 15,
-    },
-    {
-      id: 3,
-      title: 'History WWII Timeline',
-      type: 'flashcards',
-      dueDate: '2024-01-18',
-      priority: 'low',
-      count: 20,
-      estimatedTime: 25,
-    },
-  ];
-
   const completedSessions = [
     {
       id: 1,
@@ -154,10 +173,87 @@ function StudySchedulePage() {
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <div className="flex items-center justify-between space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">Study Schedule</h2>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Study Session
-            </Button>
+            <Dialog open={isNewSessionDialogOpen} onOpenChange={setIsNewSessionDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Study Session
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Study Session</DialogTitle>
+                  <DialogDescription>
+                    Select your study material and schedule a time to focus.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="study-set" className="text-right">
+                      Note
+                    </Label>
+                    <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isComboboxOpen}
+                          className="w-[200px] justify-between col-span-3"
+                        >
+                          {selectedNote
+                            ? notes?.find((note) => note.id === selectedNote)?.title
+                            : 'Select a note...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search notes..." />
+                          <CommandList>
+                            <CommandEmpty>No notes found.</CommandEmpty>
+                            <CommandGroup>
+                              {notes?.map((note) => (
+                                <CommandItem
+                                  key={note.id}
+                                  value={note.id}
+                                  onSelect={(currentValue) => {
+                                    setSelectedNote(currentValue === selectedNote ? '' : currentValue);
+                                    setIsComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      selectedNote === note.id ? 'opacity-100' : 'opacity-0'
+                                    )}
+                                  />
+                                  {note.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="start-time" className="text-right">
+                      Start Time
+                    </Label>
+                    <Input id="start-time" type="datetime-local" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="end-time" className="text-right">
+                      End Time
+                    </Label>
+                    <Input id="end-time" type="datetime-local" className="col-span-3" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit">Schedule Session</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Tabs defaultValue="schedule" className="space-y-4">
@@ -197,33 +293,42 @@ function StudySchedulePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {upcomingReviews.map((review) => (
+                      {studySets?.map((review) => (
                         <div key={review.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
-                            {review.type === 'flashcards' ? (
-                              <Brain className="h-5 w-5 text-blue-500" />
-                            ) : (
-                              <Target className="h-5 w-5 text-green-500" />
-                            )}
+                            <Brain className="h-5 w-5 text-blue-500" />
                             <div>
                               <h4 className="font-medium">{review.title}</h4>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>Due: {review.dueDate}</span>
-                                <span>•</span>
-                                <span>{review.count} items</span>
-                                <span>•</span>
-                                <span>~{review.estimatedTime} min</span>
+                                {review.due_date && (
+                                  <>
+                                    <span>Due: {new Date(review.due_date).toLocaleDateString()}</span>
+                                    <span>•</span>
+                                  </>
+                                )}
+                                <span>{review.item_count} items</span>
+                                {review.estimated_time_minutes && (
+                                  <>
+                                    <span>•</span>
+                                    <span>~{review.estimated_time_minutes} min</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={review.priority === 'high' ? 'destructive' : 
-                                     review.priority === 'medium' ? 'default' : 'outline'}
+                            <Badge
+                              variant={
+                                review.priority === 'high'
+                                  ? 'destructive'
+                                  : review.priority === 'medium'
+                                    ? 'default'
+                                    : 'secondary'
+                              }
                             >
                               {review.priority}
                             </Badge>
-                            <Button size="sm">
+                            <Button size="sm" variant="ghost">
                               <Play className="h-4 w-4" />
                             </Button>
                           </div>
@@ -328,14 +433,16 @@ function StudySchedulePage() {
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="study-material">Study Material</Label>
-                              <Select defaultValue="biology">
+                              <Select defaultValue={studySets?.[0]?.id}>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select material" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="biology">Biology Cell Structure</SelectItem>
-                                  <SelectItem value="math">Math Derivatives</SelectItem>
-                                  <SelectItem value="history">History WWII Timeline</SelectItem>
+                                  {studySets?.map((set) => (
+                                    <SelectItem key={set.id} value={set.id}>
+                                      {set.title}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -432,8 +539,8 @@ function StudySchedulePage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{session.accuracy}% accuracy</Badge>
-                          <Button size="sm" variant="outline">
+                          <Badge variant="outline">{session.accuracy}% accuracy</Badge>
+                          <Button size="sm" variant="ghost">
                             <RotateCcw className="h-4 w-4" />
                           </Button>
                         </div>
