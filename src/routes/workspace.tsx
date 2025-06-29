@@ -37,6 +37,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
@@ -59,9 +69,10 @@ import {
   CameraOff,
   Phone,
   PhoneOff,
-  MoreVertical,
   Edit,
   Crown,
+  Trash2,
+  LogOut,
 } from 'lucide-react';
 import { WorkspaceSkeleton } from '@/components/skeletons';
 import { useSupabase } from '@/contexts/SupabaseContext';
@@ -71,15 +82,22 @@ import {
   getWorkspacesForUser,
   addWorkspaceMember,
   getWorkspaceMembers,
+  deleteWorkspace,
+  removeWorkspaceMember,
 } from '@/services/workspaceService';
-import { getProfileByEmail } from '@/services/profileService';
-import { Workspace } from '@/supabase/supabase';
+import { getProfileByEmail, getProfile } from '@/services/profileService';
+import { Profile, Workspace } from '@/supabase/supabase';
+import { toast } from "sonner"
 
 export const Route = createFileRoute('/workspace')({ component: WorkspacePage });
 
 type WorkspaceWithDetails = Workspace & {
   membersCount: number;
   isOwner: boolean;
+};
+
+type WorkspaceMemberWithProfile = Profile & {
+  role: string;
 };
 
 function WorkspacePage() {
@@ -97,6 +115,16 @@ function WorkspacePage() {
     openInviteDialogForWorkspace,
     setOpenInviteDialogForWorkspace,
   ] = useState<string | null>(null);
+  const [
+    settingsWorkspace,
+    setSettingsWorkspace,
+  ] = useState<WorkspaceWithDetails | null>(null);
+  const [members, setMembers] = useState<WorkspaceMemberWithProfile[]>([]);
+  const [isFetchingMembers, setIsFetchingMembers] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<
+    'leave' | 'delete' | 'remove' | null
+  >(null);
+  const [memberToRemove, setMemberToRemove] = useState<Profile | null>(null);
 
   const supabase = useSupabase();
   const { userId } = useAuth();
@@ -127,6 +155,40 @@ function WorkspacePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, supabase]);
 
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (settingsWorkspace && supabase) {
+        setIsFetchingMembers(true);
+        const memberData = await getWorkspaceMembers(
+          supabase,
+          settingsWorkspace.id
+        );
+        if (memberData) {
+          const memberProfiles = await Promise.all(
+            memberData.map(async (member) => {
+              const profile = await getProfile(supabase, member.user_id);
+              return profile
+                ? { ...profile, role: member.role }
+                : null;
+            })
+          );
+          setMembers(
+            memberProfiles.filter(
+              (p) => p !== null
+            ) as WorkspaceMemberWithProfile[]
+          );
+        }
+        setIsFetchingMembers(false);
+      }
+    };
+
+    if (settingsWorkspace) {
+      fetchMembers();
+    } else {
+      setMembers([]);
+    }
+  }, [settingsWorkspace, supabase]);
+
   const handleCreateGroup = async () => {
     if (!newGroupName || !userId || !supabase) return;
     setIsLoading(true);
@@ -156,7 +218,7 @@ function WorkspacePage() {
     const profileToInvite = await getProfileByEmail(supabase, inviteEmail);
 
     if (!profileToInvite) {
-      alert('User with that email not found.'); // Replace with a toast notification
+      toast.error('User with that email not found.');
       return;
     }
 
@@ -167,19 +229,46 @@ function WorkspacePage() {
     });
 
     if (result) {
-      alert('Member invited successfully!'); // Replace with a toast notification
+      toast.success('Member invited successfully!');
       setInviteEmail('');
       setOpenInviteDialogForWorkspace(null);
       await fetchWorkspaces(); // Refresh workspace data
-      navigate({
-        to: '/notes',
-        search: {
-          workspaceId,
-        },
-      });
     } else {
-      alert('Failed to invite member.'); // Replace with a toast notification
+      toast.error('Failed to invite member.');
     }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!memberToRemove || !settingsWorkspace || !supabase) return;
+
+    await removeWorkspaceMember(
+      supabase,
+      settingsWorkspace.id,
+      memberToRemove.id
+    );
+    toast.success(`Removed ${memberToRemove.username} from the workspace.`);
+    setMembers(members.filter((m) => m.id !== memberToRemove.id));
+    await fetchWorkspaces(); // to update member count on card
+    setMemberToRemove(null);
+    setDialogOpen(null);
+  };
+
+  const handleLeaveWorkspace = async () => {
+    if (!settingsWorkspace || !userId || !supabase) return;
+    await removeWorkspaceMember(supabase, settingsWorkspace.id, userId);
+    toast.success(`You have left "${settingsWorkspace.name}".`);
+    setSettingsWorkspace(null);
+    await fetchWorkspaces();
+    setDialogOpen(null);
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!settingsWorkspace || !supabase) return;
+    await deleteWorkspace(supabase, settingsWorkspace.id);
+    toast.success(`Workspace "${settingsWorkspace.name}" has been deleted.`);
+    setSettingsWorkspace(null);
+    await fetchWorkspaces();
+    setDialogOpen(null);
   };
 
   if (isLoading) {
@@ -368,9 +457,12 @@ function WorkspacePage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSettingsWorkspace(group);
+                            }}
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <Settings className="h-4 w-4" />
                           </Button>
                         </div>
                       </CardHeader>
@@ -727,6 +819,164 @@ function WorkspacePage() {
               </Card>
             </TabsContent>
           </Tabs>
+
+          <Dialog
+            open={!!settingsWorkspace}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setSettingsWorkspace(null);
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Manage "{settingsWorkspace?.name}"</DialogTitle>
+                <DialogDescription>
+                  View members and manage workspace settings.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4">
+                <h3 className="text-lg font-medium tracking-tight">
+                  Members ({members.length})
+                </h3>
+                {isFetchingMembers ? (
+                  <p>Loading members...</p>
+                ) : (
+                  <div className="space-y-3">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={member.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {member.username?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {member.username}{' '}
+                              {member.id === userId && '(You)'}
+                            </p>
+                            <p className="text-xs text-muted-foreground capitalize flex items-center gap-1">
+                              {member.role === 'admin' && (
+                                <Crown className="h-3 w-3 text-yellow-500" />
+                              )}
+                              {member.role}
+                            </p>
+                          </div>
+                        </div>
+                        {settingsWorkspace?.isOwner &&
+                          member.id !== userId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setMemberToRemove(member);
+                                setDialogOpen('remove');
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="sm:justify-between pt-4 border-t">
+                <div>
+                  {!settingsWorkspace?.isOwner && (
+                     <Button
+                      variant="outline"
+                      onClick={() => setDialogOpen('leave')}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" /> Leave Workspace
+                    </Button>
+                  )}
+                </div>
+                <div>
+                  {settingsWorkspace?.isOwner && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => setDialogOpen('delete')}
+                    >
+                       <Trash2 className="mr-2 h-4 w-4" /> Delete Workspace
+                    </Button>
+                  )}
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog
+            open={dialogOpen === 'remove'}
+            onOpenChange={() => setDialogOpen(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will permanently remove{' '}
+                  <strong>{memberToRemove?.username}</strong> from the
+                  workspace.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRemoveMember}>
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog
+            open={dialogOpen === 'leave'}
+            onOpenChange={() => setDialogOpen(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to leave?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You will lose access to this workspace and its contents. You
+                  will need to be invited back to regain access.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleLeaveWorkspace}>
+                  Leave
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <AlertDialog
+            open={dialogOpen === 'delete'}
+            onOpenChange={() => setDialogOpen(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Are you sure you want to delete this workspace?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  workspace and all of its data for everyone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteWorkspace}>
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
         </div>
       </SidebarInset>
     </SidebarProvider>

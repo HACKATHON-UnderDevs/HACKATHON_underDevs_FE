@@ -1,10 +1,13 @@
 // src/components/notes/NoteCard.tsx
 import { cn } from "@/utils/css";
-import { BookOpen, Trash } from 'lucide-react';
-import type { Note } from '@/supabase/supabase';
+import { Trash } from 'lucide-react';
+import type { Note, Workspace } from '@/supabase/supabase';
+import { useAuth } from "@clerk/clerk-react";
+import { Badge } from "@/components/ui/badge";
 
 interface NoteCardProps {
   note: Note;
+  workspaces: Workspace[];
   onSelectNote: (id: string) => void;
   isSelected: boolean;
   onDeleteNote: (id: string) => void;
@@ -27,9 +30,10 @@ const getContentSnippet = (content: string | undefined): string => {
   }
 };
 
-export function NoteCard({ note, onSelectNote, isSelected, onDeleteNote }: NoteCardProps) {
+export function NoteCard({ note, workspaces, onSelectNote, isSelected, onDeleteNote }: NoteCardProps) {
+  const { userId } = useAuth();
   const contentSnippet = getContentSnippet(note.content);
-  const courseName = (note.metadata as { courseName?: string })?.courseName || 'No Course';
+  const workspace = workspaces.find(ws => ws.id === note.workspace_id);
 
   return (
     <div
@@ -43,21 +47,26 @@ export function NoteCard({ note, onSelectNote, isSelected, onDeleteNote }: NoteC
         <h3 className="text-md font-semibold truncate text-gray-800 mr-2">
           {note.title}
         </h3>
-        <button
-            onClick={(e) => {
-                e.stopPropagation(); // prevent selecting the note
-                onDeleteNote(note.id);
-            }}
-            className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-100"
-            aria-label="Delete note"
-        >
-            <Trash className="h-4 w-4" />
-        </button>
+        {note.owner_id === userId && (
+          <button
+              onClick={(e) => {
+                  e.stopPropagation(); // prevent selecting the note
+                  onDeleteNote(note.id);
+              }}
+              className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-100"
+              aria-label="Delete note"
+          >
+              <Trash className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center text-xs text-gray-500 mb-2">
-        <BookOpen size={14} className="mr-1.5 flex-shrink-0" />
-        <span className="truncate">{courseName}</span>
+        {workspace ? (
+          <Badge variant="secondary">{workspace.name}</Badge>
+        ) : (
+          <Badge variant="outline">Personal</Badge>
+        )}
       </div>
       
       <p className="text-xs text-gray-600 line-clamp-2">

@@ -1,26 +1,41 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Note } from '@/supabase/supabase';
+import { getWorkspacesForUser } from './workspaceService';
 
 const TABLE_NAME = 'notes';
 
 /**
  * Fetches all notes accessible to the current user.
  * This includes their own notes and notes in workspaces they are a member of.
- * RLS policies on the 'notes' table will handle the filtering.
  * @param supabase - The Supabase client instance.
+ * @param userId - The ID of the authenticated user.
  * @returns A list of notes.
  */
-export const getNotes = async (supabase: SupabaseClient): Promise<Note[] | null> => {
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .select('*');
-
-  if (error) {
-    console.error('Error fetching notes:', error);
-    return null;
-  }
-  return data;
-};
+export const getNotes = async (supabase: SupabaseClient, userId: string): Promise<Note[] | null> => {
+    const userWorkspaces = await getWorkspacesForUser(supabase, userId);
+    const workspaceIds = userWorkspaces ? userWorkspaces.map((ws) => ws.id) : [];
+  
+    const ownerFilter = `owner_id.eq.${userId}`;
+    let filter;
+  
+    if (workspaceIds.length > 0) {
+      const workspaceFilter = `workspace_id.in.(${workspaceIds.join(',')})`;
+      filter = `${ownerFilter},${workspaceFilter}`;
+    } else {
+      filter = ownerFilter;
+    }
+  
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .or(filter);
+  
+    if (error) {
+      console.error('Error fetching notes:', error);
+      return null;
+    }
+    return data;
+  };
 
 /**
  * Fetches all notes within a specific workspace.
