@@ -1,197 +1,257 @@
 // src/routes/quiz.tsx
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { createFileRoute, useNavigate, Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { useGamifySupabase } from '@/contexts/GamifySupabaseContext';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Crown, Gamepad2, UserPlus, Swords, Loader2 } from 'lucide-react';
-import { useGamifySupabase } from '@/contexts/GamifySupabaseContext';
-import { useUser } from '@clerk/clerk-react';
-import { SupabaseClient } from '@supabase/supabase-js';
-import type { UserResource } from '@clerk/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Crown, Gamepad2, Hash, Swords, Users, XCircle } from 'lucide-react';
 
+// A "Not Found" component to be displayed when a sub-route of /quiz is not found.
+function QuizNotFound() {
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex h-full flex-1 flex-col items-center justify-center gap-4 text-center p-8">
+          <XCircle className="size-16 text-destructive" />
+          <h1 className="text-2xl font-bold">Quiz Not Found</h1>
+          <p className="max-w-md text-muted-foreground">
+            The quiz session you are trying to access does not exist, has already
+            ended, or you may not have permission to view it.
+          </p>
+          <Button asChild>
+            <Link to="/quiz">Return to Quiz Lobby</Link>
+          </Button>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
+
+// The route now points to the Layout component
 export const Route = createFileRoute('/quiz')({
-  component: QuizLobbyPage,
+  component: QuizLayout,
+  notFoundComponent: QuizNotFound,
 });
 
-// This helper is still useful for the "Join Game" flow.
-const ensureUserProfile = async (supabase: SupabaseClient<any, any, any>, user: UserResource) => {
-  const { error } = await supabase.from('profiles').upsert({
-    id: user.id,
-    username: user.fullName || `${user.firstName} ${user.lastName}`.trim() || 'Anonymous Player',
-    avatar_url: user.imageUrl,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (error) {
-    console.error('Error ensuring user profile:', error);
-    throw new Error('Could not verify user profile. Please try again.');
-  }
-};
-
-
-function QuizLobbyPage() {
-  const [sessionCode, setSessionCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-  const supabase = useGamifySupabase();
-  const { user } = useUser();
-
-  const handleCreateGame = async () => {
-    if (!supabase || !user) return;
-    setIsLoading(true);
-
-    try {
-      // **THE FIX: Call the Edge Function**
-      // This function is expected to handle user profile creation (upsert),
-      // session creation, and adding the host as a participant atomically.
-      // This is more secure and prevents race conditions.
-      const { data, error } = await supabase.functions.invoke('create-game-session');
-
-      if (error) throw error;
-      if (!data.sessionId) throw new Error("Function did not return a session ID.");
-      
-      // Navigate to the new lobby on success
-      navigate({ to: `/quiz/${data.sessionId}` });
-
-    } catch (error: any) {
-      console.error('Error creating game session via function:', error);
-      alert(`Failed to create a new game: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleJoinGame = async () => {
-     if (!supabase || !user || !sessionCode) return;
-     setIsLoading(true);
-
-     try {
-       await ensureUserProfile(supabase, user);
-
-       const { data: session, error: sessionError } = await supabase
-          .from('game_sessions')
-          .select('session_id, status, max_participants')
-          .eq('session_code', sessionCode.toUpperCase())
-          .single();
-      
-       if (sessionError || !session) {
-          throw new Error('Invalid session code. Please check the code and try again.');
-       }
-  
-       if (session.status !== 'waiting') {
-          throw new Error('This game is no longer accepting new players.');
-       }
-       
-       // Optional: Check if the room is full before attempting to join
-       const { count } = await supabase.from('game_participants').select('*', { count: 'exact' }).eq('session_id', session.session_id);
-       if(count !== null && count >= session.max_participants) {
-          throw new Error('This game lobby is already full.');
-       }
-       
-       // Use upsert to prevent errors if user re-joins
-       const { error: joinError } = await supabase
-          .from('game_participants')
-          .upsert({ session_id: session.session_id, user_id: user.id, is_host: false, is_ready: false }, { onConflict: 'session_id, user_id' });
-  
-       if (joinError) throw joinError;
-
-       navigate({ to: `/quiz/${session.session_id}` });
-
-     } catch (error: any) {
-        console.error('Error joining game:', error);
-        alert(`Failed to join game: ${error.message}`);
-     } finally {
-        setIsLoading(false);
-     }
-  };
+// This new layout component wraps all routes under /quiz/*
+function QuizLayout() {
+  // Get the current path from the router state
+  const { pathname } = useRouterState({ select: (s) => s.location });
+  // Check if the current path is exactly `/quiz`
+  const isIndex = pathname === Route.fullPath;
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-          <div className="w-full max-w-4xl space-y-8">
-            <div className="text-center">
-              <Swords className="mx-auto h-12 w-12 text-primary" />
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                Multiplayer Quiz Arena
-              </h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Challenge your friends and test your knowledge!
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="h-5 w-5" />
-                    Join a Game
-                  </CardTitle>
-                  <CardDescription>
-                    Enter a session code to join an existing game.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="session-code">Session Code</Label>
-                    <Input
-                      id="session-code"
-                      placeholder="ABCDEF"
-                      value={sessionCode}
-                      onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
-                      className="text-center text-lg tracking-widest font-mono"
-                      maxLength={6}
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full" onClick={handleJoinGame} disabled={isLoading || sessionCode.length < 6}>
-                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Gamepad2 className="mr-2 h-4 w-4" />}
-                    Join Game
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card className="border-primary border-2 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-primary">
-                    <Crown className="h-5 w-5" />
-                    Create a New Game
-                  </CardTitle>
-                  <CardDescription>
-                    Start a new quiz session and invite others to join.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    You'll be the host. Once everyone has joined and is ready, you can start the game.
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full" variant="default" onClick={handleCreateGame} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-                    Create New Game
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          </div>
-        </div>
+        {isIndex ? <QuizLobbyContent /> : <Outlet />}
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: string, questions_count?: number }, onHost: (quizId: string) => void, disabled: boolean }) {
+    return (
+        <Card className="hover:border-primary transition-colors flex flex-col">
+            <CardHeader className="flex-1">
+                <CardTitle className="flex items-center gap-2">
+                    <Gamepad2 className="h-5 w-5 text-primary" />
+                    {quiz.title}
+                </CardTitle>
+                <CardDescription>
+                    {quiz.questions_count ?? 0} questions available
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button className="w-full" onClick={() => onHost(quiz.id)} disabled={disabled}>
+                    <Crown className="mr-2 h-4 w-4" /> Host this Quiz
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+// The content for the /quiz index page has been moved into this component
+function QuizLobbyContent() {
+  const [sessionCode, setSessionCode] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [quizzes, setQuizzes] = useState<{ id: string; title: string; questions_count: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const navigate = useNavigate();
+  const supabase = useGamifySupabase();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (!supabase || !user) return;
+    
+    supabase
+      .from('quizzes')
+      .select('id, title, questions(count)') 
+      .eq('user_id', user.id)
+      .then(({ data, error }) => {
+        if (data) {
+          const formattedData = data.map((q: any) => ({
+            ...q,
+            questions_count: q.questions[0]?.count ?? 0,
+            questions: undefined,
+          }));
+          setQuizzes(formattedData);
+        }
+        if (error) console.error("Error fetching quizzes:", error);
+        setIsLoading(false);
+      });
+  }, [supabase, user]);
+
+  const createGameSession = async (quizId: string) => {
+    if (!quizId || !supabase) {
+      alert('A quiz must be selected.');
+      return;
+    }
+    setIsCreating(true);
+    try {
+      // Use supabase.functions.invoke to correctly call the edge function
+      const { data, error } = await supabase.functions.invoke('create-game-session', {
+        body: { quiz_id: quizId },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.sessionId) {
+        navigate({ to: `/quiz/${data.sessionId}` });
+      } else {
+        throw new Error(data.error || 'Failed to create session: Invalid response from function.');
+      }
+    } catch (e) {
+      console.error(e);
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+      alert(`Error creating session: ${errorMessage}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const joinGameSession = async () => {
+    const code = sessionCode.trim().toUpperCase();
+    if (!code || !supabase) {
+      alert('Please enter a valid session code.');
+      return;
+    }
+    setIsJoining(true);
+    try {
+      // Implement joining a session via an edge function for security
+      const { data, error } = await supabase.functions.invoke('join-game-session', {
+        body: { session_code: code },
+      });
+
+      if (error) {
+        // Handle specific errors, like function not found, gracefully
+        if (error.message.includes("Not Found")) {
+            throw new Error("The join-game-session function doesn't seem to exist. Or, check the session code.");
+        }
+        throw error;
+      }
+
+      if (data.sessionId) {
+        navigate({ to: `/quiz/${data.sessionId}` });
+      } else {
+        throw new Error(data.error || 'Could not find a session with that code.');
+      }
+    } catch (e) {
+      console.error(e);
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+      alert(`Error joining session: ${errorMessage}`);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Multiplayer Quiz</h2>
+          <p className="text-muted-foreground">Challenge your friends or create a new quiz!</p>
+        </div>
+      </div>
+      
+      <Tabs defaultValue="host" className="w-full max-w-3xl mx-auto">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="host"><Crown className="mr-2 h-4 w-4" /> Host a Game</TabsTrigger>
+          <TabsTrigger value="join"><Users className="mr-2 h-4 w-4" /> Join a Game</TabsTrigger>
+        </TabsList>
+        <TabsContent value="host">
+          <Card>
+            <CardHeader>
+              <CardTitle>Host a New Quiz</CardTitle>
+              <CardDescription>Select one of your saved quizzes to start a new multiplayer session.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoading ? (
+                <div className="grid md:grid-cols-2 gap-4">
+                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-40 w-full" />
+                </div>
+              ) : quizzes.length > 0 ? (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {quizzes.map((q) => (
+                    <QuizCard key={q.id} quiz={q} onHost={createGameSession} disabled={isCreating} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-8 border-2 border-dashed rounded-lg">
+                    <p className="text-muted-foreground">You don't have any quizzes yet.</p>
+                    <Button variant="link" asChild>
+                        <Link to="/ai-generation">Create a quiz with AI</Link>
+                    </Button>
+                </div>
+              )}
+              {isCreating && <p className="text-center text-primary animate-pulse mt-4">Creating session...</p>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="join">
+          <Card>
+            <CardHeader>
+              <CardTitle>Join an Existing Game</CardTitle>
+              <CardDescription>Enter the session code provided by the host to join the quiz lobby.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="session-code">Session Code</Label>
+                <div className="flex items-center gap-2">
+                    <Hash className="h-5 w-5 text-muted-foreground" />
+                    <Input 
+                        id="session-code" 
+                        placeholder="ABCDEF"
+                        value={sessionCode}
+                        onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
+                        className="text-lg font-mono tracking-widest text-center"
+                        maxLength={6}
+                    />
+                </div>
+              </div>
+              <Button className="w-full" onClick={joinGameSession} disabled={isJoining || !sessionCode}>
+                {isJoining ? "Joining..." : <> <Swords className="mr-2 h-4 w-4" /> Join Game </>}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

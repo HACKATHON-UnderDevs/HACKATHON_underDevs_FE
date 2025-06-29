@@ -1,5 +1,4 @@
 // src/components/app-sidebar.tsx
-import * as React from "react"
 import {
   ClipboardListIcon,
   DatabaseIcon,
@@ -16,6 +15,7 @@ import {
   SwordsIcon,
 } from "lucide-react"
 import { UserButton, useUser } from "@clerk/clerk-react"
+import { Link } from "@tanstack/react-router"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -57,6 +57,8 @@ const data = {
       title: "Multiplayer Quiz",
       url: "/quiz",
       icon: SwordsIcon,
+    },
+    {
       title: "Study Schedule",
       url: "/study-schedule",
       icon: ClipboardListIcon,
