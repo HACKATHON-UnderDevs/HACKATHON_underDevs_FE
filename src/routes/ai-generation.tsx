@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import {
   Card,
@@ -42,28 +42,46 @@ import {
   Play,
   Upload,
   TrendingUp,
+  AlertCircle,
 } from 'lucide-react';
 import { AIGenerationSkeleton } from '@/components/skeletons';
+import { QuizAPIService, SavedQuiz } from '@/services/quiz-api-service';
+import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const Route = createFileRoute('/ai-generation')({ component: AIGenerationPage });
 
 function AIGenerationPage() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [sourceText, setSourceText] = useState('');
   const [flashcardCount, setFlashcardCount] = useState('10');
-  const [quizLength, setQuizLength] = useState('5');
-  const [difficulty, setDifficulty] = useState('medium');
+  // Removed quizLength, difficulty, and questionType states
+  const [quizTitle, setQuizTitle] = useState('');
+  const [quizSubject, setQuizSubject] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [userQuizzes, setUserQuizzes] = useState<SavedQuiz[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Mock user ID - in real app, get from auth context
+  const userId = 'user-123';
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 200);
+    const loadData = async () => {
+      try {
+        const quizzes = await QuizAPIService.getUserQuizzes(userId);
+        setUserQuizzes(quizzes);
+      } catch (error) {
+        console.error('Error loading user quizzes:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
-  }, []);
+    loadData();
+  }, [userId]);
 
   if (isLoading) {
     return <AIGenerationSkeleton />;
@@ -115,21 +133,79 @@ function AIGenerationPage() {
     },
   ];
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!sourceText.trim()) {
+      toast.error('Please enter source material for the quiz');
+      return;
+    }
+
+    // Validate minimum content length to prevent AI breakage
+    if (sourceText.trim().length < 100) {
+      toast.error('Source material must be at least 100 characters long for quality quiz generation');
+      return;
+    }
+
+    // Check for meaningful content (not just repeated characters or spaces)
+    const words = sourceText.trim().split(/\s+/).filter(word => word.length > 2);
+    if (words.length < 20) {
+      toast.error('Please provide more detailed content with at least 20 meaningful words');
+      return;
+    }
+
+    if (!quizTitle.trim()) {
+      toast.error('Please enter a title for your quiz');
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationProgress(0);
-    
-    // Simulate AI generation progress
-    const interval = setInterval(() => {
-      setGenerationProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsGenerating(false);
-          return 100;
-        }
-        return prev + 10;
+    setError(null);
+
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 15;
+        });
+      }, 300);
+
+      // Save quiz data to database first
+      const savedQuiz = await QuizAPIService.saveQuizToDatabase({
+        title: quizTitle,
+        subject: quizSubject || undefined,
+        sourceText,
+        userId,
       });
-    }, 200);
+      
+      setGenerationProgress(100);
+      
+      // Update local state
+      setUserQuizzes(prev => [savedQuiz, ...prev]);
+      
+      // Reset form
+      setSourceText('');
+      setQuizTitle('');
+      setQuizSubject('');
+      
+      toast.success(`Quiz "${savedQuiz.title}" generated successfully!`);
+      
+      // Navigate to quiz page after a short delay
+      setTimeout(() => {
+        navigate({ to: `/quiz/${savedQuiz.id}` });
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error generating quiz:', error);
+      setError('Failed to generate quiz. Please try again.');
+      toast.error('Failed to generate quiz. Please try again.');
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress(0);
+    }
   };
 
   return (
@@ -202,19 +278,6 @@ function AIGenerationPage() {
                               <SelectItem value="10">10 flashcards</SelectItem>
                               <SelectItem value="15">15 flashcards</SelectItem>
                               <SelectItem value="20">20 flashcards</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="difficulty">Difficulty Level</Label>
-                          <Select value={difficulty} onValueChange={setDifficulty}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="easy">Easy</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="hard">Hard</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -293,59 +356,67 @@ function AIGenerationPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {error && (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="quiz-title">Quiz Title</Label>
+                          <Input
+                            id="quiz-title"
+                            placeholder="Enter a title for your quiz..."
+                            value={quizTitle}
+                            onChange={(e) => setQuizTitle(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="quiz-subject">Subject (Optional)</Label>
+                          <Input
+                            id="quiz-subject"
+                            placeholder="e.g., Biology, Math, History..."
+                            value={quizSubject}
+                            onChange={(e) => setQuizSubject(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
                       <div className="space-y-2">
                         <Label htmlFor="quiz-source">Source Material</Label>
                         <Textarea
                           id="quiz-source"
-                          placeholder="Enter the content you want to be quizzed on..."
+                          placeholder="Enter the content you want to be quizzed on... (minimum 100 characters, 20+ meaningful words)"
                           value={sourceText}
                           onChange={(e) => setSourceText(e.target.value)}
-                          className="min-h-[200px]"
+                          className={`min-h-[200px] ${
+                            sourceText.length > 0 && sourceText.length < 100 
+                              ? 'border-orange-300 focus:border-orange-500' 
+                              : sourceText.length >= 100 
+                              ? 'border-green-300 focus:border-green-500' 
+                              : ''
+                          }`}
                         />
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="quiz-length">Quiz Length</Label>
-                          <Select value={quizLength} onValueChange={setQuizLength}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="5">5 questions</SelectItem>
-                              <SelectItem value="10">10 questions</SelectItem>
-                              <SelectItem value="15">15 questions</SelectItem>
-                              <SelectItem value="20">20 questions</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="quiz-difficulty">Difficulty</Label>
-                          <Select value={difficulty} onValueChange={setDifficulty}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="easy">Easy</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="hard">Hard</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="question-type">Question Type</Label>
-                          <Select defaultValue="mixed">
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                              <SelectItem value="true-false">True/False</SelectItem>
-                              <SelectItem value="short-answer">Short Answer</SelectItem>
-                              <SelectItem value="mixed">Mixed</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className={`${
+                            sourceText.length < 100 
+                              ? 'text-orange-600' 
+                              : 'text-green-600'
+                          }`}>
+                            {sourceText.length}/100 characters minimum
+                          </span>
+                          <span className={`${
+                            sourceText.trim().split(/\s+/).filter(word => word.length > 2).length < 20
+                              ? 'text-orange-600'
+                              : 'text-green-600'
+                          }`}>
+                            {sourceText.trim().split(/\s+/).filter(word => word.length > 2).length}/20 words minimum
+                          </span>
                         </div>
                       </div>
+                      {/* Removed Quiz Length, Difficulty, and Question Type fields */}
                       {isGenerating && (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
@@ -358,7 +429,7 @@ function AIGenerationPage() {
                       <Button 
                         className="w-full" 
                         onClick={handleGenerate}
-                        disabled={isGenerating || !sourceText.trim()}
+                        disabled={isGenerating || !sourceText.trim() || !quizTitle.trim()}
                       >
                         <Target className="h-4 w-4 mr-2" />
                         {isGenerating ? 'Generating...' : 'Generate Quiz'}
@@ -376,22 +447,34 @@ function AIGenerationPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {recentQuizzes.map((quiz) => (
-                          <div key={quiz.id} className="p-3 border rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-sm font-medium">{quiz.title}</h4>
-                              <Badge variant="outline">{quiz.questions} Q</Badge>
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                              <span>{quiz.subject}</span>
-                              <span>Score: {quiz.lastScore}%</span>
-                            </div>
-                            <Button size="sm" variant="outline" className="w-full h-6 text-xs">
-                              <Play className="h-3 w-3 mr-1" />
-                              Take Quiz
-                            </Button>
+                        {userQuizzes.length === 0 ? (
+                          <div className="text-center text-muted-foreground py-8">
+                            <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No quizzes yet</p>
+                            <p className="text-xs">Generate your first quiz to get started</p>
                           </div>
-                        ))}
+                        ) : (
+                          userQuizzes.slice(0, 5).map((quiz) => (
+                            <div key={quiz.id} className="p-3 border rounded-lg">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium">{quiz.title}</h4>
+                                <Badge variant="outline">{quiz.question_count} Q</Badge>
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                <span>{quiz.subject || 'General'}</span>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="w-full h-6 text-xs"
+                                onClick={() => navigate({ to: `/quiz/${quiz.id}` })}
+                              >
+                                <Play className="h-3 w-3 mr-1" />
+                                Take Quiz
+                              </Button>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </CardContent>
                   </Card>
