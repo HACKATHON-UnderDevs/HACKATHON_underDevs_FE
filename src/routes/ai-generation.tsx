@@ -649,7 +649,7 @@ function AIGenerationPage() {
                                   variant="outline"
                                   className="h-6 text-xs"
                                   onClick={() =>
-                                    navigate({ to: `/flashcard/${set.id}?mode=study` })
+                                    navigate({ to: `/flashcard/${set.id}`, search: { mode: 'study' } })
                                   }
                                 >
                                   <Play className="h-3 w-3 mr-1" />
@@ -660,7 +660,7 @@ function AIGenerationPage() {
                                   variant="outline"
                                   className="h-6 text-xs"
                                   onClick={() =>
-                                    navigate({ to: `/flashcard/${set.id}?mode=review` })
+                                    navigate({ to: `/flashcard/${set.id}`, search: { mode: 'review' } })
                                   }
                                 >
                                   <RotateCcw className="h-3 w-3 mr-1" />
@@ -959,8 +959,11 @@ function AIGenerationPage() {
                                 onClick={() =>
                                   navigate({ 
                                     to: item.type === "flashcard" 
-                                      ? `/flashcard/${item.id}?mode=study` 
-                                      : `/quiz/${item.id}` 
+                                      ? `/flashcard/${item.id}` 
+                                      : `/quiz/${item.id}`,
+                                    search: item.type === "flashcard" 
+                                      ? { mode: 'study' } 
+                                      : undefined
                                   })
                                 }
                               >
