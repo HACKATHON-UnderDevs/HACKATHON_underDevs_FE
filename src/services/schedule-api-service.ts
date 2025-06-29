@@ -19,7 +19,7 @@ export const ScheduleAPIService = {
     // This is a placeholder for the actual API endpoint.
     // In a real application, this would point to a serverless function
     // or a dedicated backend service. I am assuming the endpoint is at /api/generate-schedule
-    const response = await fetch('https://ai.vibe88.tech/study-sets', {
+    const response = await fetch('https://api.vibe88.tech/study-sets', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
