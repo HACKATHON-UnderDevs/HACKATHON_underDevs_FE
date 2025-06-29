@@ -1,5 +1,5 @@
-import { MailIcon, PlusCircleIcon, type LucideIcon } from "lucide-react"
-import { Link } from "@tanstack/react-router"
+import { MailIcon, PlusCircleIcon, type LucideIcon, ChevronRightIcon } from "lucide-react"
+import { Link, useMatchRoute } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/Button"
 import {
@@ -9,6 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { cn } from "@/utils/cn";
 
 export function NavMain({
   items,
@@ -19,6 +20,8 @@ export function NavMain({
     icon?: LucideIcon
   }[]
 }) {
+  const matchRoute = useMatchRoute();
+
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -42,16 +45,31 @@ export function NavMain({
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild tooltip={item.title}>
-                <Link to={item.url}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {items.map((item) => {
+            const isActive = matchRoute({ to: item.url, fuzzy: true });
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.title}
+                  className={cn("transition-colors duration-200", isActive && "bg-muted text-foreground")}
+                >
+                  <Link to={item.url}>
+                    {item.icon && <item.icon />}
+                    <span className="flex-grow">{item.title}</span>
+                    <div className="overflow-hidden">
+                      <ChevronRightIcon
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-transform duration-300 ease-in-out",
+                          isActive ? "translate-x-0" : "-translate-x-full"
+                        )}
+                      />
+                    </div>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

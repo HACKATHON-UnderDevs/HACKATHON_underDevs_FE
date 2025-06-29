@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/hooks/use-game-play.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGamifySupabase } from '@/contexts/GamifySupabaseContext';
@@ -62,6 +64,7 @@ const gameService = {
         joined_at: p.joined_at,
         is_host: p.is_host ?? false,
         is_ready: p.is_ready ?? false,
+        final_rank: p.final_rank,
         username: p.profiles?.username ?? 'Player',
         avatar_url: p.profiles?.avatar_url,
         streak: 0,
@@ -277,7 +280,7 @@ export function useGamePlay(sessionId: string) {
              }));
         });
         
-        channel.subscribe((status, err) => {
+        channel.subscribe((_status, err) => {
             if(err) toast.error(`Realtime Error: ${err.message}`);
         });
         channelRef.current = channel;

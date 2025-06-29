@@ -156,11 +156,11 @@ function NotesPageContent() {
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
-      if (workspaceId) return matchesSearch; 
+      if (workspaceId) return matchesSearch;
 
-      const matchesFilter = filter === 'all' || 
-                            (filter === 'personal' && !note.workspace_id) || 
-                            (filter === 'workspace' && note.workspace_id);
+      const matchesFilter = filter === 'all' ||
+        (filter === 'personal' && !note.workspace_id) ||
+        (filter === 'workspace' && note.workspace_id);
       return matchesSearch && matchesFilter;
     });
   }, [notes, searchTerm, filter, workspaceId]);
@@ -258,9 +258,9 @@ function NotesPageContent() {
               </div>
               {!workspaceId && (
                 <div className="flex items-center gap-2 mb-4">
-                    <Button size="sm" variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')}>All</Button>
-                    <Button size="sm" variant={filter === 'personal' ? 'secondary' : 'outline'} onClick={() => setFilter('personal')}>Personal</Button>
-                    <Button size="sm" variant={filter === 'workspace' ? 'secondary' : 'outline'} onClick={() => setFilter('workspace')}>Workspaces</Button>
+                  <Button size="sm" variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')}>All</Button>
+                  <Button size="sm" variant={filter === 'personal' ? 'secondary' : 'outline'} onClick={() => setFilter('personal')}>Personal</Button>
+                  <Button size="sm" variant={filter === 'workspace' ? 'secondary' : 'outline'} onClick={() => setFilter('workspace')}>Workspaces</Button>
                 </div>
               )}
               <div className="flex items-center gap-2">
@@ -275,9 +275,9 @@ function NotesPageContent() {
                     Go to workspace
                   </Button>
                 )}
-                 <Button onClick={handleCreateNewNote} size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    New
+                <Button onClick={handleCreateNewNote} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  New
                 </Button>
               </div>
             </header>

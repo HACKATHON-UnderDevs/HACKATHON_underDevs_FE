@@ -1,3 +1,4 @@
+// src/routes/quiz/$quizId.tsx
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import {
@@ -47,7 +48,6 @@ function QuizPage() {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isQuizCompleted, setIsQuizCompleted] = useState(false);
   
-  // Timer effect
   useEffect(() => {
     if (!showResults && !isQuizCompleted) {
       const timer = setInterval(() => {
@@ -58,7 +58,6 @@ function QuizPage() {
     }
   }, [showResults, isQuizCompleted]);
   
-  // Load quiz data
   useEffect(() => {
     const loadQuiz = async () => {
       try {
@@ -117,7 +116,6 @@ function QuizPage() {
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
-      // Remove the last answer and set it as selected
       const lastAnswer = answers[answers.length - 1];
       if (lastAnswer) {
         setSelectedAnswer(lastAnswer.selectedAnswer);
@@ -136,6 +134,7 @@ function QuizPage() {
   };
   
   const calculateScore = () => {
+    if (answers.length === 0) return 0;
     const correctAnswers = answers.filter(answer => answer.isCorrect).length;
     return Math.round((correctAnswers / answers.length) * 100);
   };

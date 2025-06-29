@@ -1,3 +1,4 @@
+// src/services/quiz-api-service.ts
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -11,7 +12,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Backend API interfaces
 export interface BackendQuizRequest {
-  quiz_id: string;
+  title: string;
+  subject?: string;
+  user_id: string;
+  note_id: string;
   note_content: string;
   question_count?: number;
 }
@@ -19,17 +23,29 @@ export interface BackendQuizRequest {
 export interface BackendAnswer {
   option_text: string;
   is_correct: boolean;
+  answer_order: number;
 }
 
 export interface BackendQuizQuestion {
-  quiz_id: string;
   question_text: string;
   question_type: string;
+  question_order: number;
   answers: BackendAnswer[];
 }
 
+export interface BackendQuiz {
+  quiz_id: string;
+  title: string;
+  subject: string;
+  user_id: string;
+  note_id: string;
+  question_count: number;
+  questions: BackendQuizQuestion[];
+}
+
 export interface BackendQuizResponse {
-  quizzes: BackendQuizQuestion[];
+  success: boolean;
+  quiz: BackendQuiz;
 }
 
 // Frontend interfaces
@@ -73,6 +89,7 @@ export interface GenerateQuizOptions {
   subject?: string;
   sourceText: string;
   userId: string;
+  noteId?: string;
 }
 
 // Flashcard interfaces
@@ -134,7 +151,7 @@ export interface GenerateFlashcardOptions {
 }
 
 export class QuizAPIService {
-  private static readonly BACKEND_API_URL = 'http://127.0.0.1:8000';
+  private static readonly BACKEND_API_URL = 'https://ai.vibe88.tech';
 
   // Generate a unique quiz ID
   private static generateQuizId(): string {
@@ -144,7 +161,7 @@ export class QuizAPIService {
   // Call the backend API to generate quiz
   private static async callBackendAPI(request: BackendQuizRequest): Promise<BackendQuizResponse> {
     try {
-      const response = await fetch(`${this.BACKEND_API_URL}/quizzes`, {
+      const response = await fetch(`${this.BACKEND_API_URL}/quizzes/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,10 +183,10 @@ export class QuizAPIService {
 
   // Convert backend questions to frontend format
   private static convertBackendQuestions(backendQuestions: BackendQuizQuestion[]): QuizQuestion[] {
-    return backendQuestions.map((bq, index) => {
+    return backendQuestions.map((bq) => {
       const correctAnswer = bq.answers.find(a => a.is_correct);
       return {
-        id: `question_${index + 1}`,
+        id: `question_${bq.question_order}`,
         question: bq.question_text,
         options: bq.answers.map(a => a.option_text),
         correct_answer: correctAnswer?.option_text || bq.answers[0]?.option_text || '',
@@ -184,13 +201,29 @@ export class QuizAPIService {
     subject?: string;
     sourceText: string;
     userId: string;
+    noteId?: string;
     questionCount?: number;
   }): Promise<SavedQuiz> {
     try {
-      // Step 1: Generate unique quiz ID
-      const quizId = this.generateQuizId();
+      // Step 1: Generate unique backend quiz ID for API communication
+      const backendQuizId = this.generateQuizId();
 
-      // Step 2: Save initial submission to database
+      // Step 2: Create quiz in main quizzes table first
+      const { data: mainQuiz, error: mainQuizError } = await supabase
+        .from('quizzes')
+        .insert({
+          user_id: quizData.userId,
+          title: quizData.title,
+          subject: quizData.subject,
+          question_count: quizData.questionCount || 5,
+          note_id: quizData.noteId
+        })
+        .select()
+        .single();
+
+      if (mainQuizError) throw mainQuizError;
+
+      // Step 3: Save initial submission to database with backend quiz_id
       const { data: submission, error: submissionError } = await supabase
         .from('quiz_submissions')
         .insert({
@@ -198,7 +231,7 @@ export class QuizAPIService {
           quiz_title: quizData.title,
           subject: quizData.subject,
           source_material: quizData.sourceText,
-          quiz_id: quizId,
+          quiz_id: backendQuizId,
           status: 'processing'
         })
         .select()
@@ -206,47 +239,57 @@ export class QuizAPIService {
 
       if (submissionError) throw submissionError;
 
-      // Step 3: Call backend API
+      // Step 4: Call backend API to generate quiz
       const backendRequest: BackendQuizRequest = {
-        quiz_id: quizId,
+        title: quizData.title,
+        subject: quizData.subject || '',
+        user_id: quizData.userId,
+        note_id: quizData.noteId || `generated_${Date.now()}`,
         note_content: quizData.sourceText,
         question_count: quizData.questionCount || 5
       };
 
       const backendResponse = await this.callBackendAPI(backendRequest);
 
-      // Step 4: Convert backend questions to frontend format
-      const questions = this.convertBackendQuestions(backendResponse.quizzes);
+      if (!backendResponse.success) {
+        throw new Error('Backend API returned unsuccessful response');
+      }
 
-      // Step 5: Save generated quiz to database
+      // Debug: Log the backend response quiz_id
+      console.log('Backend response quiz_id:', backendResponse.quiz.quiz_id);
+      console.log('Generated backendQuizId:', backendQuizId);
+
+      // Step 5: Convert backend questions to frontend format
+      const questions = this.convertBackendQuestions(backendResponse.quiz.questions);
+
+      // Step 6: Save generated quiz to database with main quiz ID
       const { data: generatedQuiz, error: quizError } = await supabase
         .from('generated_quizzes')
         .insert({
           submission_id: submission.id,
-          quiz_id: quizId,
-          user_id: quizData.userId,
-          title: quizData.title,
-          subject: quizData.subject,
-          question_count: questions.length
+          quiz_id: mainQuiz.id.toString(), // Convert UUID to string for VARCHAR field
+          user_id: backendResponse.quiz.user_id,
+          note_id: backendResponse.quiz.note_id,
+          title: backendResponse.quiz.title,
+          subject: backendResponse.quiz.subject,
+          question_count: backendResponse.quiz.question_count
         })
         .select()
         .single();
 
       if (quizError) throw quizError;
 
-      // Step 6: Save questions and answers
-      for (let i = 0; i < backendResponse.quizzes.length; i++) {
-        const backendQuestion = backendResponse.quizzes[i];
-        
+      // Step 7: Save questions and answers
+      for (const backendQuestion of backendResponse.quiz.questions) {
         // Save question
         const { data: savedQuestion, error: questionError } = await supabase
           .from('quiz_questions')
           .insert({
             quiz_id: generatedQuiz.id,
-            backend_quiz_id: quizId,
+            backend_quiz_id: backendResponse.quiz.quiz_id, // Use the backend response quiz ID
             question_text: backendQuestion.question_text,
             question_type: backendQuestion.question_type,
-            question_order: i + 1
+            question_order: backendQuestion.question_order
           })
           .select()
           .single();
@@ -254,11 +297,11 @@ export class QuizAPIService {
         if (questionError) throw questionError;
 
         // Save answers
-        const answersToInsert = backendQuestion.answers.map((answer, answerIndex) => ({
+        const answersToInsert = backendQuestion.answers.map((answer) => ({
           question_id: savedQuestion.id,
           option_text: answer.option_text,
           is_correct: answer.is_correct,
-          answer_order: answerIndex + 1
+          answer_order: answer.answer_order
         }));
 
         const { error: answersError } = await supabase
@@ -268,15 +311,19 @@ export class QuizAPIService {
         if (answersError) throw answersError;
       }
 
-      // Step 7: Update submission status
+      // Step 8: Update submission status
       await supabase
         .from('quiz_submissions')
-        .update({ status: 'completed' })
+        .update({ 
+          status: 'completed'
+        })
         .eq('id', submission.id);
 
       // Return the complete saved quiz
       return {
         ...generatedQuiz,
+        submission_id: submission.id,
+        quiz_id: mainQuiz.id,
         questions
       };
     } catch (error) {
@@ -376,7 +423,14 @@ export class QuizAPIService {
 
   static async generateQuiz(options: GenerateQuizOptions): Promise<QuizQuestion[]> {
     try {
-      const savedQuiz = await this.saveQuizToDatabase(options);
+      const savedQuiz = await this.saveQuizToDatabase({
+        title: options.title,
+        subject: options.subject,
+        sourceText: options.sourceText,
+        userId: options.userId,
+        noteId: options.noteId,
+        questionCount: 5
+      });
       return savedQuiz.questions;
     } catch (error) {
       console.error('Error generating quiz:', error);
