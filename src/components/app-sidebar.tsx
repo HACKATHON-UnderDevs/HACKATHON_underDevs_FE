@@ -27,6 +27,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Link } from "node_modules/@tanstack/react-router/dist/esm/link"
 
 // Sample data for navigation
 const data = {

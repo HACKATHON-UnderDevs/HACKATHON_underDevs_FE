@@ -575,22 +575,22 @@ function AIGenerationPage() {
                           value={sourceText}
                           onChange={(e) => setSourceText(e.target.value)}
                           className={`min-h-[200px] ${sourceText.length > 0 && sourceText.length < 100
-                              ? 'border-orange-300 focus:border-orange-500'
-                              : sourceText.length >= 100
-                                ? 'border-green-300 focus:border-green-500'
-                                : ''
+                            ? 'border-orange-300 focus:border-orange-500'
+                            : sourceText.length >= 100
+                              ? 'border-green-300 focus:border-green-500'
+                              : ''
                             }`}
                         />
                         <div className="flex justify-between items-center text-sm">
                           <span className={`${sourceText.length < 100
-                              ? 'text-orange-600'
-                              : 'text-green-600'
+                            ? 'text-orange-600'
+                            : 'text-green-600'
                             }`}>
                             {sourceText.length}/100 characters minimum
                           </span>
                           <span className={`${sourceText.trim().split(/\s+/).filter(word => word.length > 2).length < 20
-                              ? 'text-orange-600'
-                              : 'text-green-600'
+                            ? 'text-orange-600'
+                            : 'text-green-600'
                             }`}>
                             {sourceText.trim().split(/\s+/).filter(word => word.length > 2).length}/20 words minimum
                           </span>
