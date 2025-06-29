@@ -1,24 +1,30 @@
 // src/types/gamify.ts
-
 // Represents a single question in a quiz
 export interface QuizQuestion {
   id: string;
   questionText: string;
   options: string[];
   correctOptionIndex: number;
+  explanation?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   topic: string;
 }
 
 // Represents a multiplayer game session
 export interface GameSession {
-  session_id: string;
+  id: string;
   host_user_id: string;
   session_code: string;
-  status: 'waiting' | 'active' | 'finished' | 'archived';
+  status: 'waiting' | 'in_progress' | 'completed'; 
   created_at: string;
+  started_at?: string;
+  ended_at?: string;
   max_participants: number;
   current_question_index: number;
+  quiz_id: string;
+  quizzes?: {
+    title: string;
+  }
 }
 
 // Represents a player within a game session
@@ -26,22 +32,27 @@ export interface GameParticipant {
   id: number;
   session_id: string;
   user_id: string;
-  username?: string; // To be fetched from user profiles
-  avatar_url?: string; // To be fetched from user profiles
+  username: string;
+  avatar_url: string | null;
   score: number;
   joined_at: string;
   is_host: boolean;
   is_ready: boolean;
+  final_rank?: number;
+  streak?: number;
 }
 
 // Represents the real-time state of a game
 export interface GameState {
-  session_id: string;
-  current_question: QuizQuestion | null;
-  timer_start: string | null;
-  timer_duration: number | null; // in seconds
-  phase: 'waiting' | 'question' | 'answer_reveal' | 'leaderboard' | 'finished';
-  last_updated: string;
+  session: GameSession | null;
+  participants: GameParticipant[];
+  currentQuestion: QuizQuestion | null;
+  questionNumber: number;
+  totalQuestions: number;
+  timer: number;
+  phase: 'loading' | 'get_ready' | 'question' | 'answer_reveal' | 'leaderboard' | 'finished';
+  lastCorrectAnswer?: boolean;
+  selectedAnswerIndex?: number;
 }
 
 // Represents an achievement definition

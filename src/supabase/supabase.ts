@@ -11,6 +11,7 @@ export interface Profile {
   supabase_auth_user_id?: string; // UUID
   username?: string;
   email?: string;
+  avatar_url?: string;
   subscription_tier: 'free' | 'premium' | 'corporate';
   subscription_status?: string;
   clerk_subscription_id?: string;
@@ -56,5 +57,5 @@ export interface Note {
     metadata: Json; // JSONB
     created_at: string; // TIMESTAMPTZ
     updated_at: string; // TIMESTAMPTZ
-    workspace_id?: string; // UUID, nullable
+    workspace_id?: string | null; // UUID, nullable
   }

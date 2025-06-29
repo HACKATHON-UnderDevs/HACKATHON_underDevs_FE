@@ -1,13 +1,16 @@
 import minhanh from "@/images/minh-anh.png";
 import dinhduong from "@/images/dinh-duong.png";
 import anhkiet from "@/images/anh-kiet.png";
+import songphuc from "@/images/song-phuc.png"
+import thinhan from "@/images/thinh-an.png"
+import duytan from "@/images/duy-tan.png"
 
 const members = [
   {
     name: "Song Phuc",
     role: "Team Leader / AI",
     avatar:
-      "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
+      songphuc,
     link: "#",
   },
   {
@@ -32,14 +35,14 @@ const members = [
     name: "Thinh An",
     role: "Frontend",
     avatar:
-      "https://www.gravatar.com/avatar/11111111111111111111111111111111?d=mp&f=y",
+      thinhan,
     link: "#",
   },
   {
     name: "Duy Tan",
     role: "Backend",
     avatar:
-      "https://www.gravatar.com/avatar/22222222222222222222222222222222?d=mp&f=y",
+      duytan,
     link: "#",
   },
 ];

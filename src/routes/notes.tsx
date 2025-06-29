@@ -1,7 +1,5 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { z } from 'zod';
 import {
   AppSidebar,
@@ -11,7 +9,7 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
-import { ChevronLeft, Search, Plus, Settings, Trash } from 'lucide-react';
+import { ChevronLeft, Search, Plus, Settings, Trash, ArrowLeft } from 'lucide-react';
 import { MantineProvider } from '@mantine/core';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +29,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Component Imports
 import { NoteCard } from '@/components/notes/NoteCard';
@@ -89,18 +98,19 @@ function NotesPage() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<'all' | 'personal' | 'workspace'>('all');
   const { workspaceId } = Route.useSearch();
   const supabase = useSupabase();
   const { userId } = useAuth();
   const navigate = useNavigate();
 
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     if (!supabase || !userId) return;
     setIsLoading(true);
 
     const fetchedNotes = workspaceId
       ? await getNotesInWorkspace(supabase, workspaceId)
-      : await getNotes(supabase);
+      : await getNotes(supabase, userId);
 
     if (fetchedNotes) {
       setNotes(fetchedNotes);
@@ -111,27 +121,32 @@ function NotesPage() {
       }
     }
     setIsLoading(false);
-  };
+  }, [supabase, userId, workspaceId]);
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     if (!supabase || !userId) return;
     const userWorkspaces = await getWorkspacesForUser(supabase, userId);
     if (userWorkspaces) {
       setWorkspaces(userWorkspaces);
     }
-  };
+  }, [supabase, userId]);
 
   useEffect(() => {
     fetchNotes();
     fetchWorkspaces();
-  }, [workspaceId, supabase, userId]);
+  }, [fetchNotes, fetchWorkspaces]);
 
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
+      if (workspaceId) return matchesSearch; 
+
+      const matchesFilter = filter === 'all' || 
+                            (filter === 'personal' && !note.workspace_id) || 
+                            (filter === 'workspace' && note.workspace_id);
+      return matchesSearch && matchesFilter;
     });
-  }, [notes, searchTerm]);
+  }, [notes, searchTerm, filter, workspaceId]);
 
   const selectedNote = useMemo(() => {
     return notes.find((note) => note.id === selectedNoteId);
@@ -145,11 +160,17 @@ function NotesPage() {
     if (!selectedNoteId || !supabase) return;
     const updatedNote = await updateNote(supabase, selectedNoteId, updatedNoteData);
     if (updatedNote) {
-      setNotes(prevNotes =>
-        prevNotes.map(note =>
-          note.id === selectedNoteId ? updatedNote : note
-        )
-      );
+      if (workspaceId && updatedNote.workspace_id !== workspaceId) {
+        const newNotes = notes.filter((n) => n.id !== selectedNoteId);
+        setNotes(newNotes);
+        setSelectedNoteId(newNotes.length > 0 ? newNotes[0].id : null);
+      } else {
+        setNotes((prevNotes) =>
+          prevNotes.map((note) =>
+            note.id === selectedNoteId ? updatedNote : note
+          )
+        );
+      }
     }
   };
 
@@ -157,7 +178,7 @@ function NotesPage() {
     if (!supabase || !userId) return;
     const newNoteData: Partial<Note> = {
       title: "Untitled Note",
-      content: '[]',
+      content: JSON.stringify(Array(10).fill({ type: "paragraph" })),
       owner_id: userId,
       workspace_id: workspaceId,
       metadata: { courseName: 'New Course' }
@@ -203,8 +224,25 @@ function NotesPage() {
                   className="pl-8"
                 />
               </div>
+              {!workspaceId && (
+                <div className="flex items-center gap-2 mb-4">
+                    <Button size="sm" variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')}>All</Button>
+                    <Button size="sm" variant={filter === 'personal' ? 'secondary' : 'outline'} onClick={() => setFilter('personal')}>Personal</Button>
+                    <Button size="sm" variant={filter === 'workspace' ? 'secondary' : 'outline'} onClick={() => setFilter('workspace')}>Workspaces</Button>
+                </div>
+              )}
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => navigate({ to: '/notes' })}>All Notes</Button>
+                {workspaceId ? (
+                  <Button variant="outline" onClick={() => navigate({ to: '/workspace' })}>
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Back to Workspace
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => navigate({ to: '/workspace' })}>
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Go to workspace
+                  </Button>
+                )}
                  <Button onClick={handleCreateNewNote} size="sm">
                     <Plus className="h-4 w-4 mr-1" />
                     New
@@ -216,6 +254,7 @@ function NotesPage() {
                 <NoteCard
                   key={note.id}
                   note={note}
+                  workspaces={workspaces}
                   onSelectNote={handleSelectNote}
                   isSelected={note.id === selectedNoteId}
                   onDeleteNote={handleDeleteNote}
@@ -226,7 +265,7 @@ function NotesPage() {
             </div>
           </aside>
 
-          <main className={`flex-1 w-full md:w-2/3 lg:w-3/4 p-4 md:p-8 overflow-y-auto ${selectedNoteId ? 'block' : 'hidden md:block'}`}>
+          <main className={`flex-1 w-full md:w-2/3 lg:w-3/4 p-4 md:p-6 flex flex-col ${selectedNoteId ? 'flex' : 'hidden md:flex'}`}>
             {selectedNoteId && (
               <button
                 onClick={() => setSelectedNoteId(null)}
@@ -239,68 +278,99 @@ function NotesPage() {
             )}
 
             {selectedNote ? (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedNote.title}</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {((selectedNote.metadata as { courseName?: string })?.courseName) || 'No course'}
-                    </p>
-                  </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Note Settings</DialogTitle>
-                        <DialogDescription>
-                          Move this note to a different workspace.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="collaboration-group">Workspace</Label>
-                          <Select
-                            value={selectedNote.workspace_id || 'none'}
-                            onValueChange={(value) => {
-                              handleUpdateNote({ workspace_id: value === 'none' ? undefined : value });
-                            }}
-                          >
-                            <SelectTrigger id="collaboration-group">
-                              <SelectValue placeholder="Assign to a workspace" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No Workspace</SelectItem>
-                              {workspaces.map((ws) => (
-                                <SelectItem key={ws.id} value={ws.id}>
-                                  {ws.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex flex-col space-y-2">
-                          <Label>Delete Note</Label>
-                           <Button variant="destructive" onClick={() => handleDeleteNote(selectedNote.id)}>
-                              <Trash className="h-4 w-4 mr-2" />
-                              Delete this note
-                            </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+              <div className="flex-1 flex flex-col min-h-0">
                 <MantineProvider>
                   <NoteDetailView
                     key={selectedNote.id}
                     note={selectedNote}
                     onUpdateNote={handleUpdateNote}
+                    noteSettingsComponent={
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="icon">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Note Settings</DialogTitle>
+                            <DialogDescription>
+                              Move this note to a different workspace.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="collaboration-group">
+                                Workspace
+                              </Label>
+                              <Select
+                                value={selectedNote.workspace_id || "none"}
+                                onValueChange={(value) => {
+                                  handleUpdateNote({
+                                    workspace_id:
+                                      value === "none" ? null : value,
+                                  });
+                                }}
+                              >
+                                <SelectTrigger id="collaboration-group">
+                                  <SelectValue placeholder="Assign to a workspace" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">
+                                    No Workspace
+                                  </SelectItem>
+                                  {workspaces.map((ws) => (
+                                    <SelectItem key={ws.id} value={ws.id}>
+                                      {ws.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {selectedNote.owner_id === userId && (
+                              <div className="flex flex-col space-y-2">
+                                <Label>Delete Note</Label>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="destructive">
+                                      <Trash className="h-4 w-4 mr-2" />
+                                      Delete this note
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Are you absolutely sure?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will
+                                        permanently delete your note and remove
+                                        your data from our servers.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() =>
+                                          handleDeleteNote(selectedNote.id)
+                                        }
+                                      >
+                                        Continue
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    }
                   />
                 </MantineProvider>
-              </>
+              </div>
             ) : (
               <div className="text-center py-10 flex flex-col items-center justify-center h-full">
                 <h2 className="text-2xl font-semibold text-gray-600">Select a note</h2>
