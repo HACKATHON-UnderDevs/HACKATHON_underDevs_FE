@@ -84,6 +84,7 @@ export interface LectureNote {
 
 const notesSearchSchema = z.object({
   workspaceId: z.string().optional().catch(undefined),
+  noteId: z.string().optional().catch(undefined),
 });
 
 // --- TanStack Route Definition ---
@@ -99,7 +100,7 @@ function NotesPage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'personal' | 'workspace'>('all');
-  const { workspaceId } = Route.useSearch();
+  const { workspaceId, noteId } = Route.useSearch();
   const supabase = useSupabase();
   const { userId } = useAuth();
   const navigate = useNavigate();
@@ -114,14 +115,16 @@ function NotesPage() {
 
     if (fetchedNotes) {
       setNotes(fetchedNotes);
-      if (fetchedNotes.length > 0) {
+      if (noteId && fetchedNotes.some(n => n.id === noteId)) {
+        setSelectedNoteId(noteId);
+      } else if (fetchedNotes.length > 0) {
         setSelectedNoteId(fetchedNotes[0].id);
       } else {
         setSelectedNoteId(null);
       }
     }
     setIsLoading(false);
-  }, [supabase, userId, workspaceId]);
+  }, [supabase, userId, workspaceId, noteId]);
 
   const fetchWorkspaces = useCallback(async () => {
     if (!supabase || !userId) return;
@@ -154,6 +157,7 @@ function NotesPage() {
 
   const handleSelectNote = (id: string) => {
     setSelectedNoteId(id);
+    navigate({ search: (prev) => ({ ...prev, noteId: id }), replace: true });
   };
 
   const handleUpdateNote = async (updatedNoteData: Partial<Note>) => {

@@ -47,6 +47,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
@@ -55,13 +61,11 @@ import { SiteHeader } from '@/components/site-header';
 import {
   Users,
   Plus,
-  Share2,
   MessageCircle,
   Video,
   Clock,
   Settings,
   UserPlus,
-  Copy,
   Send,
   Mic,
   MicOff,
@@ -69,7 +73,6 @@ import {
   CameraOff,
   Phone,
   PhoneOff,
-  Edit,
   Crown,
   Trash2,
   LogOut,
@@ -86,14 +89,21 @@ import {
   removeWorkspaceMember,
 } from '@/services/workspaceService';
 import { getProfileByEmail, getProfile } from '@/services/profileService';
-import { Profile, Workspace } from '@/supabase/supabase';
+import { getNotes } from '@/services/noteService';
+import { Note, Profile, Workspace } from '@/supabase/supabase';
 import { toast } from "sonner"
+import { getContentSnippet } from '@/utils/noteUtils';
 
 export const Route = createFileRoute('/workspace')({ component: WorkspacePage });
 
 type WorkspaceWithDetails = Workspace & {
   membersCount: number;
   isOwner: boolean;
+};
+
+type NoteWithWorkspaceDetails = Note & {
+  workspaceName: string;
+  workspaceMembersCount: number;
 };
 
 type WorkspaceMemberWithProfile = Profile & {
@@ -104,12 +114,15 @@ function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
-  const [collaborativeNote, setCollaborativeNote] = useState('');
   const [chatMessage, setChatMessage] = useState('');
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [workspaces, setWorkspaces] = useState<WorkspaceWithDetails[]>([]);
+  const [sharedNotes, setSharedNotes] = useState<NoteWithWorkspaceDetails[]>([]);
+  const [filteredNotes, setFilteredNotes] = useState<NoteWithWorkspaceDetails[]>([]);
+  const [noteNameFilter, setNoteNameFilter] = useState('');
+  const [workspaceFilter, setWorkspaceFilter] = useState('all');
   const [inviteEmail, setInviteEmail] = useState('');
   const [
     openInviteDialogForWorkspace,
@@ -120,7 +133,11 @@ function WorkspacePage() {
     setSettingsWorkspace,
   ] = useState<WorkspaceWithDetails | null>(null);
   const [members, setMembers] = useState<WorkspaceMemberWithProfile[]>([]);
-  const [isFetchingMembers, setIsFetchingMembers] = useState(false);
+  const [
+    workspaceMembers,
+    setWorkspaceMembers,
+  ] = useState<Record<string, WorkspaceMemberWithProfile[]>>({});
+  const [isFetchingAllMembers, setIsFetchingAllMembers] = useState(false);
   const [dialogOpen, setDialogOpen] = useState<
     'leave' | 'delete' | 'remove' | null
   >(null);
@@ -156,38 +173,79 @@ function WorkspacePage() {
   }, [userId, supabase]);
 
   useEffect(() => {
-    const fetchMembers = async () => {
-      if (settingsWorkspace && supabase) {
-        setIsFetchingMembers(true);
-        const memberData = await getWorkspaceMembers(
-          supabase,
-          settingsWorkspace.id
-        );
-        if (memberData) {
-          const memberProfiles = await Promise.all(
-            memberData.map(async (member) => {
-              const profile = await getProfile(supabase, member.user_id);
-              return profile
-                ? { ...profile, role: member.role }
-                : null;
+    const fetchNotes = async () => {
+      if (userId && supabase && workspaces.length > 0) {
+        const notesData = await getNotes(supabase, userId);
+        if (notesData) {
+          const notesWithDetails = notesData
+            .map((note) => {
+              if (!note.workspace_id) return null;
+              const workspace = workspaces.find(
+                (ws) => ws.id === note.workspace_id
+              );
+              if (!workspace) return null;
+              return {
+                ...note,
+                workspaceName: workspace.name,
+                workspaceMembersCount: workspace.membersCount,
+              };
             })
-          );
-          setMembers(
-            memberProfiles.filter(
-              (p) => p !== null
-            ) as WorkspaceMemberWithProfile[]
-          );
+            .filter(Boolean) as NoteWithWorkspaceDetails[];
+          setSharedNotes(notesWithDetails);
         }
-        setIsFetchingMembers(false);
       }
     };
+    fetchNotes();
+  }, [userId, supabase, workspaces]);
 
+  useEffect(() => {
+    let notes = sharedNotes;
+    if (workspaceFilter !== 'all') {
+      notes = notes.filter((note) => note.workspace_id === workspaceFilter);
+    }
+    if (noteNameFilter) {
+      notes = notes.filter(
+        (note) =>
+          note.title &&
+          note.title.toLowerCase().includes(noteNameFilter.toLowerCase())
+      );
+    }
+    setFilteredNotes(notes);
+  }, [sharedNotes, noteNameFilter, workspaceFilter]);
+
+  useEffect(() => {
     if (settingsWorkspace) {
-      fetchMembers();
+      setMembers(workspaceMembers[settingsWorkspace.id] || []);
     } else {
       setMembers([]);
     }
-  }, [settingsWorkspace, supabase]);
+  }, [settingsWorkspace, workspaceMembers]);
+
+  useEffect(() => {
+    const fetchAllWorkspaceMembers = async () => {
+      if (supabase && workspaces.length > 0) {
+        setIsFetchingAllMembers(true);
+        const allMembers: Record<string, WorkspaceMemberWithProfile[]> = {};
+        for (const workspace of workspaces) {
+          const memberData = await getWorkspaceMembers(supabase, workspace.id);
+          if (memberData) {
+            const memberProfiles = await Promise.all(
+              memberData.map(async (member) => {
+                const profile = await getProfile(supabase, member.user_id);
+                return profile ? { ...profile, role: member.role } : null;
+              })
+            );
+            allMembers[workspace.id] = memberProfiles.filter(
+              (p) => p !== null
+            ) as WorkspaceMemberWithProfile[];
+          }
+        }
+        setWorkspaceMembers(allMembers);
+        setIsFetchingAllMembers(false);
+      }
+    };
+    fetchAllWorkspaceMembers();
+  }, [workspaces, supabase]);
 
   const handleCreateGroup = async () => {
     if (!newGroupName || !userId || !supabase) return;
@@ -274,12 +332,6 @@ function WorkspacePage() {
   if (isLoading) {
     return <WorkspaceSkeleton />;
   }
-
-  const activeCollaborators = [
-    { name: 'Alice Johnson', status: 'online', avatar: '/avatars/alice.jpg', role: 'editor' },
-    { name: 'Bob Smith', status: 'online', avatar: '/avatars/bob.jpg', role: 'viewer' },
-    { name: 'Charlie Brown', status: 'away', avatar: '/avatars/charlie.jpg', role: 'editor' },
-  ];
 
   const chatMessages = [
     {
@@ -420,6 +472,7 @@ function WorkspacePage() {
           <Tabs defaultValue="groups" className="space-y-4">
             <TabsList>
               <TabsTrigger value="groups">Study Groups</TabsTrigger>
+              <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="live-session">Live Session</TabsTrigger>
               <TabsTrigger value="shared-notes">Shared Notes</TabsTrigger>
               <TabsTrigger value="activity">Activity Feed</TabsTrigger>
@@ -572,6 +625,81 @@ function WorkspacePage() {
               </div>
             </TabsContent>
 
+            {/* Members Tab */}
+            <TabsContent value="members" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workspace Members</CardTitle>
+                  <CardDescription>
+                    View all members across your workspaces.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isFetchingAllMembers ? (
+                    <p>Loading members...</p>
+                  ) : (
+                    <Accordion type="single" collapsible className="w-full">
+                      {workspaces.map((workspace) => (
+                        <AccordionItem
+                          key={workspace.id}
+                          value={workspace.id.toString()}
+                        >
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-2">
+                              {workspace.name}
+                              <Badge variant="secondary">
+                                {workspaceMembers[workspace.id]?.length || 0}{' '}
+                                members
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3 pl-2">
+                              {workspaceMembers[workspace.id] &&
+                              workspaceMembers[workspace.id].length > 0 ? (
+                                workspaceMembers[workspace.id].map(
+                                  (member) => (
+                                    <div
+                                      key={member.id}
+                                      className="flex items-center gap-3"
+                                    >
+                                      <Avatar className="h-9 w-9">
+                                        <AvatarImage
+                                          src={member.avatar_url || undefined}
+                                        />
+                                        <AvatarFallback>
+                                          {member.username
+                                            ?.charAt(0)
+                                            .toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <p className="font-semibold flex items-center gap-2">
+                                          {member.username}
+                                          {member.id === workspace.owner_id && (
+                                            <Crown className="h-4 w-4 text-yellow-500" />
+                                          )}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground capitalize">
+                                          {member.role}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )
+                                )
+                              ) : (
+                                <p>No members found.</p>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Live Session Tab */}
             <TabsContent value="live-session" className="space-y-4">
               <div className="grid gap-4 lg:grid-cols-3">
@@ -683,111 +811,79 @@ function WorkspacePage() {
 
             {/* Shared Notes Tab */}
             <TabsContent value="shared-notes" className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-4">
-                <div className="lg:col-span-3">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Edit className="h-5 w-5" />
-                        Collaborative Notes
-                      </CardTitle>
-                      <CardDescription>
-                        Real-time collaborative editing with your study group
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="text-sm font-medium">Active Collaborators:</span>
-                          {activeCollaborators.map((collaborator, index) => (
-                            <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                              <div className={`w-2 h-2 rounded-full ${
-                                collaborator.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'
-                              }`} />
-                              {collaborator.name}
-                            </Badge>
-                          ))}
-                        </div>
-                        <Textarea
-                          placeholder="Start collaborating on notes... Others can see your changes in real-time!"
-                          value={collaborativeNote}
-                          onChange={(e) => setCollaborativeNote(e.target.value)}
-                          className="min-h-[400px] resize-none"
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Invite Collaborator
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Share2 className="h-4 w-4 mr-2" />
-                            Share Link
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy Link
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                <div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Collaborators
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {activeCollaborators.map((collaborator, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 border rounded">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarImage src={collaborator.avatar} />
-                                <AvatarFallback>{collaborator.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="text-sm font-medium">{collaborator.name}</p>
-                                <p className="text-xs text-muted-foreground">{collaborator.role}</p>
-                              </div>
-                            </div>
-                            <div className={`w-2 h-2 rounded-full ${
-                              collaborator.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'
-                            }`} />
-                          </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filter Notes</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="note-name-filter">Note Title</Label>
+                    <Input
+                      id="note-name-filter"
+                      placeholder="Filter by note title..."
+                      value={noteNameFilter}
+                      onChange={(e) => setNoteNameFilter(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="workspace-filter">Workspace</Label>
+                    <Select
+                      value={workspaceFilter}
+                      onValueChange={setWorkspaceFilter}
+                    >
+                      <SelectTrigger id="workspace-filter">
+                        <SelectValue placeholder="Filter by workspace" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Workspaces</SelectItem>
+                        {workspaces.map((ws) => (
+                          <SelectItem key={ws.id} value={ws.id}>
+                            {ws.name}
+                          </SelectItem>
                         ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="mt-4">
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredNotes.map((note) => (
+                  <Card
+                    key={note.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() =>
+                      navigate({
+                        to: '/notes',
+                        search: {
+                          workspaceId: note.workspace_id,
+                        },
+                      })
+                    }
+                  >
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Settings className="h-5 w-5" />
-                        Permissions
-                      </CardTitle>
+                      <CardTitle className="truncate">{note.title || 'Untitled Note'}</CardTitle>
+                      <CardDescription>{note.workspaceName}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Anyone can edit</span>
-                          <Badge variant="outline">Enabled</Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Comments allowed</span>
-                          <Badge variant="outline">Enabled</Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Download allowed</span>
-                          <Badge variant="outline">Enabled</Badge>
-                        </div>
-                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-3 h-[60px]">
+                        {getContentSnippet(note.content)}
+                      </p>
                     </CardContent>
+                    <CardFooter>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Users className="h-3 w-3 mr-1" />
+                        {note.workspaceMembersCount} members
+                      </div>
+                    </CardFooter>
                   </Card>
-                </div>
+                ))}
               </div>
+              {filteredNotes.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No shared notes found matching your criteria.</p>
+                </div>
+              )}
             </TabsContent>
 
             {/* Activity Feed Tab */}
@@ -839,7 +935,7 @@ function WorkspacePage() {
                 <h3 className="text-lg font-medium tracking-tight">
                   Members ({members.length})
                 </h3>
-                {isFetchingMembers ? (
+                {isFetchingAllMembers ? (
                   <p>Loading members...</p>
                 ) : (
                   <div className="space-y-3">

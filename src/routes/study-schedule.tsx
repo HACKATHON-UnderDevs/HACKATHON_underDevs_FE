@@ -76,7 +76,7 @@ function StudySchedulePage() {
     {
       id: 1,
       title: 'Biology Cell Structure',
-      type: 'flashcards',
+      code: 'flashcards',
       dueDate: '2024-01-16',
       priority: 'high',
       count: 15,

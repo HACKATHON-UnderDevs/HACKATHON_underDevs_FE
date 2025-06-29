@@ -28,7 +28,9 @@ export const getNotes = async (supabase: SupabaseClient, userId: string): Promis
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .or(filter);
+      .or(filter)
+      // Order by the most recently updated notes first.
+      .order('updated_at', { ascending: false });
   
     if (error) {
       console.error('Error fetching notes:', error);
@@ -48,7 +50,9 @@ export const getNotesInWorkspace = async (supabase: SupabaseClient, workspaceId:
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .eq('workspace_id', workspaceId);
+      .eq('workspace_id', workspaceId)
+      // Order by the most recently updated notes first.
+      .order('updated_at', { ascending: false });
   
     if (error) {
       console.error(`Error fetching notes for workspace ${workspaceId}:`, error);
@@ -136,4 +140,4 @@ export const deleteNote = async (supabase: SupabaseClient, noteId: string): Prom
       return { error: new Error(error.message) };
     }
     return { error: null };
-  }; 
+  };

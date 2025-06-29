@@ -4,6 +4,7 @@ import { Trash } from 'lucide-react';
 import type { Note, Workspace } from '@/supabase/supabase';
 import { useAuth } from "@clerk/clerk-react";
 import { Badge } from "@/components/ui/badge";
+import { getContentSnippet } from "@/utils/noteUtils";
 
 interface NoteCardProps {
   note: Note;
@@ -12,23 +13,6 @@ interface NoteCardProps {
   isSelected: boolean;
   onDeleteNote: (id: string) => void;
 }
-
-// Helper to get a plain text snippet from the BlockNote JSON content
-const getContentSnippet = (content: string | undefined): string => {
-  if (!content) return 'No content available.';
-  try {
-    const blocks = JSON.parse(content);
-    const textBlocks = blocks
-      .filter((block: { type: string; }) => block.type === 'paragraph' || block.type === 'heading')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((block: any) => 
-        block.content?.map((inline: { text: string; }) => inline.text).join('') || ''
-      );
-    return textBlocks.join(' ').slice(0, 100) || 'No text content.';
-  } catch {
-    return 'Could not display content.';
-  }
-};
 
 export function NoteCard({ note, workspaces, onSelectNote, isSelected, onDeleteNote }: NoteCardProps) {
   const { userId } = useAuth();
