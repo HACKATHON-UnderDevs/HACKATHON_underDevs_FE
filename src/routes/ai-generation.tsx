@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -42,11 +42,19 @@ import {
   Play,
   Upload,
   TrendingUp,
+  Loader2,
+  File as FileIcon,
+  X,
+  BookOpen,
   AlertCircle,
 } from 'lucide-react';
 import { AIGenerationSkeleton } from '@/components/skeletons';
-import { QuizAPIService, SavedQuiz } from '@/services/quiz-api-service';
 import { toast } from 'sonner';
+import { useSupabase } from '@/contexts/SupabaseContext';
+import { useAuth } from '@clerk/clerk-react';
+import { createNote, getNotes } from '@/services/noteService';
+import { Note } from '@/supabase/supabase';
+import { QuizAPIService, SavedQuiz } from '@/services/quiz-api-service';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -55,33 +63,119 @@ export const Route = createFileRoute('/ai-generation')({ component: AIGeneration
 function AIGenerationPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const supabase = useSupabase();
+  const { userId } = useAuth();
+
   const [sourceText, setSourceText] = useState('');
   const [flashcardCount, setFlashcardCount] = useState('10');
-  // Removed quizLength, difficulty, and questionType states
   const [quizTitle, setQuizTitle] = useState('');
   const [quizSubject, setQuizSubject] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [userQuizzes, setUserQuizzes] = useState<SavedQuiz[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  // Mock user ID - in real app, get from auth context
-  const userId = 'user-123';
+
+  // State for the new lecture note generation feature
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true);
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const quizzes = await QuizAPIService.getUserQuizzes(userId);
+        const [quizzes, notes] = await Promise.all([
+          QuizAPIService.getUserQuizzes(userId),
+          supabase ? getNotes(supabase, userId) : Promise.resolve(null),
+        ]);
+
         setUserQuizzes(quizzes);
+        if (notes) {
+          setRecentNotes(notes.slice(0, 3));
+        }
+
       } catch (error) {
-        console.error('Error loading user quizzes:', error);
+        console.error('Error loading data:', error);
+        setError("Failed to load initial data. Please refresh the page.");
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [userId]);
+  }, [userId, supabase]);
+
+
+  // Handler for when a user selects a file
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  // Main function to handle file upload, analysis, and note creation
+  const handleGenerateNoteFromFile = async () => {
+    if (!selectedFile || !supabase || !userId) {
+      toast.error('Please select a file and ensure you are logged in.');
+      return;
+    }
+
+    setIsGeneratingNote(true);
+    toast.loading('Analyzing document and generating lecture guide...');
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      // Step 1: Call the backend to get structured note content from the file
+      const response = await fetch('http://localhost:8000/documents', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to analyze the document.');
+      }
+
+      const analysisResult = await response.json();
+
+      const noteData: Partial<Note> = {
+        title: selectedFile.name.replace(/\.[^/.]+$/, ""), // Remove file extension for title
+        content: analysisResult.summary, // The backend now returns structured content here
+        owner_id: userId,
+        metadata: { source: 'ai-generated-document' }
+      };
+
+      // Step 2: Save the generated content as a new note in Supabase
+      const newNote = await createNote(supabase, noteData);
+
+      if (!newNote) {
+        throw new Error("Failed to save the generated note to your account.");
+      }
+
+      toast.success('Lecture guide created successfully! Redirecting...');
+
+      // Step 3: Redirect user to the notes page to see their new note
+      navigate({ to: '/notes', search: { noteId: newNote.id } });
+
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred.');
+    } finally {
+      setIsGeneratingNote(false);
+      setSelectedFile(null); // Clear file selection
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   if (isLoading) {
     return <AIGenerationSkeleton />;
@@ -114,38 +208,17 @@ function AIGenerationPage() {
     },
   ];
 
-  const recentQuizzes = [
-    {
-      id: 1,
-      title: 'Physics Motion Quiz',
-      questions: 10,
-      subject: 'Physics',
-      createdAt: '2024-01-15',
-      lastScore: 85,
-    },
-    {
-      id: 2,
-      title: 'Chemistry Bonds',
-      questions: 8,
-      subject: 'Chemistry',
-      createdAt: '2024-01-14',
-      lastScore: 90,
-    },
-  ];
-
-  const handleGenerate = async () => {
+  const handleGenerateQuiz = async () => {
     if (!sourceText.trim()) {
       toast.error('Please enter source material for the quiz');
       return;
     }
 
-    // Validate minimum content length to prevent AI breakage
     if (sourceText.trim().length < 100) {
       toast.error('Source material must be at least 100 characters long for quality quiz generation');
       return;
     }
 
-    // Check for meaningful content (not just repeated characters or spaces)
     const words = sourceText.trim().split(/\s+/).filter(word => word.length > 2);
     if (words.length < 20) {
       toast.error('Please provide more detailed content with at least 20 meaningful words');
@@ -162,7 +235,6 @@ function AIGenerationPage() {
     setError(null);
 
     try {
-      // Simulate progress updates
       const progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
           if (prev >= 90) {
@@ -173,31 +245,27 @@ function AIGenerationPage() {
         });
       }, 300);
 
-      // Save quiz data to database first
       const savedQuiz = await QuizAPIService.saveQuizToDatabase({
         title: quizTitle,
         subject: quizSubject || undefined,
         sourceText,
-        userId,
+        userId: userId!,
       });
-      
+
       setGenerationProgress(100);
-      
-      // Update local state
+
       setUserQuizzes(prev => [savedQuiz, ...prev]);
-      
-      // Reset form
+
       setSourceText('');
       setQuizTitle('');
       setQuizSubject('');
-      
+
       toast.success(`Quiz "${savedQuiz.title}" generated successfully!`);
-      
-      // Navigate to quiz page after a short delay
+
       setTimeout(() => {
         navigate({ to: `/quiz/${savedQuiz.id}` });
       }, 1000);
-      
+
     } catch (error) {
       console.error('Error generating quiz:', error);
       setError('Failed to generate quiz. Please try again.');
@@ -206,6 +274,23 @@ function AIGenerationPage() {
       setIsGenerating(false);
       setGenerationProgress(0);
     }
+  };
+
+  const handleGenerateFlashcards = () => {
+    setIsGenerating(true);
+    setGenerationProgress(0);
+
+    // Simulate AI generation progress
+    const interval = setInterval(() => {
+      setGenerationProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsGenerating(false);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
   };
 
   return (
@@ -224,12 +309,110 @@ function AIGenerationPage() {
             </div>
           </div>
 
-          <Tabs defaultValue="flashcards" className="space-y-4">
+          <Tabs defaultValue="lecture-guide" className="space-y-4">
             <TabsList>
+              <TabsTrigger value="lecture-guide">Lecture Guide</TabsTrigger>
               <TabsTrigger value="flashcards">Smart Flashcards</TabsTrigger>
               <TabsTrigger value="quizzes">Quiz Generation</TabsTrigger>
               <TabsTrigger value="history">Generation History</TabsTrigger>
             </TabsList>
+
+            {/* Lecture Guide Generation */}
+            <TabsContent value="lecture-guide" className="space-y-4">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5" />
+                        Generate Lecture Guide from Document
+                      </CardTitle>
+                      <CardDescription>
+                        Upload a PDF, DOCX, or PPTX file to have AI create a structured and detailed lecture note for you.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <input
+                        id="file-upload"
+                        aria-label="Upload a document"
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept=".pdf,.docx,.pptx,.txt"
+                        disabled={isGeneratingNote}
+                      />
+                      <div
+                        className="border-2 border-dashed border-muted-foreground/50 rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <p className="mt-4 font-semibold">Click to upload a document</p>
+                        <p className="text-sm text-muted-foreground">PDF, DOCX, PPTX, TXT</p>
+                      </div>
+
+                      {selectedFile && (
+                        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                          <div className='flex items-center gap-2 truncate'>
+                            <FileIcon className="h-4 w-4 shrink-0" />
+                            <span className='truncate text-sm'>{selectedFile.name}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }} disabled={isGeneratingNote}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+
+                      <Button
+                        className="w-full"
+                        onClick={handleGenerateNoteFromFile}
+                        disabled={isGeneratingNote || !selectedFile}
+                      >
+                        {isGeneratingNote ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-2" />
+                        )}
+                        {isGeneratingNote ? 'Generating...' : 'Generate Lecture Guide'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        Recent Notes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {recentNotes.length > 0 ? recentNotes.map((note) => (
+                          <div key={note.id} className="p-3 border rounded-lg">
+                            <h4 className="text-sm font-medium truncate mb-1">{note.title}</h4>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Updated {new Date(note.updated_at).toLocaleDateString()}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full h-6 text-xs"
+                              onClick={() => navigate({ to: '/notes', search: { noteId: note.id } })}
+                            >
+                              <Play className="h-3 w-3 mr-1" />
+                              View Note
+                            </Button>
+                          </div>
+                        )) : (
+                          <p className='text-sm text-muted-foreground text-center'>No recent notes found.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
 
             {/* Flashcards Generation */}
             <TabsContent value="flashcards" className="space-y-4">
@@ -247,9 +430,9 @@ function AIGenerationPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="source-material">Source Material</Label>
+                        <Label htmlFor="source-material-flashcards">Source Material</Label>
                         <Textarea
-                          id="source-material"
+                          id="source-material-flashcards"
                           placeholder="Paste your study material here, or upload a document..."
                           value={sourceText}
                           onChange={(e) => setSourceText(e.target.value)}
@@ -291,9 +474,9 @@ function AIGenerationPage() {
                           <Progress value={generationProgress} className="w-full" />
                         </div>
                       )}
-                      <Button 
-                        className="w-full" 
-                        onClick={handleGenerate}
+                      <Button
+                        className="w-full"
+                        onClick={handleGenerateFlashcards}
                         disabled={isGenerating || !sourceText.trim()}
                       >
                         <Zap className="h-4 w-4 mr-2" />
@@ -362,7 +545,7 @@ function AIGenerationPage() {
                           <AlertDescription>{error}</AlertDescription>
                         </Alert>
                       )}
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="quiz-title">Quiz Title</Label>
@@ -383,7 +566,7 @@ function AIGenerationPage() {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="quiz-source">Source Material</Label>
                         <Textarea
@@ -391,32 +574,28 @@ function AIGenerationPage() {
                           placeholder="Enter the content you want to be quizzed on... (minimum 100 characters, 20+ meaningful words)"
                           value={sourceText}
                           onChange={(e) => setSourceText(e.target.value)}
-                          className={`min-h-[200px] ${
-                            sourceText.length > 0 && sourceText.length < 100 
-                              ? 'border-orange-300 focus:border-orange-500' 
-                              : sourceText.length >= 100 
-                              ? 'border-green-300 focus:border-green-500' 
+                          className={`min-h-[200px] ${sourceText.length > 0 && sourceText.length < 100
+                            ? 'border-orange-300 focus:border-orange-500'
+                            : sourceText.length >= 100
+                              ? 'border-green-300 focus:border-green-500'
                               : ''
-                          }`}
+                            }`}
                         />
                         <div className="flex justify-between items-center text-sm">
-                          <span className={`${
-                            sourceText.length < 100 
-                              ? 'text-orange-600' 
-                              : 'text-green-600'
-                          }`}>
+                          <span className={`${sourceText.length < 100
+                            ? 'text-orange-600'
+                            : 'text-green-600'
+                            }`}>
                             {sourceText.length}/100 characters minimum
                           </span>
-                          <span className={`${
-                            sourceText.trim().split(/\s+/).filter(word => word.length > 2).length < 20
-                              ? 'text-orange-600'
-                              : 'text-green-600'
-                          }`}>
+                          <span className={`${sourceText.trim().split(/\s+/).filter(word => word.length > 2).length < 20
+                            ? 'text-orange-600'
+                            : 'text-green-600'
+                            }`}>
                             {sourceText.trim().split(/\s+/).filter(word => word.length > 2).length}/20 words minimum
                           </span>
                         </div>
                       </div>
-                      {/* Removed Quiz Length, Difficulty, and Question Type fields */}
                       {isGenerating && (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
@@ -426,9 +605,9 @@ function AIGenerationPage() {
                           <Progress value={generationProgress} className="w-full" />
                         </div>
                       )}
-                      <Button 
-                        className="w-full" 
-                        onClick={handleGenerate}
+                      <Button
+                        className="w-full"
+                        onClick={handleGenerateQuiz}
                         disabled={isGenerating || !sourceText.trim() || !quizTitle.trim()}
                       >
                         <Target className="h-4 w-4 mr-2" />
@@ -463,9 +642,9 @@ function AIGenerationPage() {
                               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                                 <span>{quiz.subject || 'General'}</span>
                               </div>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 className="w-full h-6 text-xs"
                                 onClick={() => navigate({ to: `/quiz/${quiz.id}` })}
                               >
@@ -494,7 +673,7 @@ function AIGenerationPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {[...recentFlashcards, ...recentQuizzes].map((item, index) => (
+                      {[...recentFlashcards, ...userQuizzes].map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex items-center gap-3">
                             {'count' in item ? (
@@ -505,13 +684,13 @@ function AIGenerationPage() {
                             <div>
                               <h4 className="font-medium">{item.title}</h4>
                               <p className="text-sm text-muted-foreground">
-                                {'count' in item ? `${item.count} flashcards` : `${item.questions} questions`} • {item.subject}
+                                {'count' in item ? `${item.count} flashcards` : `${(item as SavedQuiz).question_count} questions`} • {item.subject}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary">
-                              {'accuracy' in item ? `${item.accuracy}% accuracy` : `${item.lastScore}% score`}
+                              {'accuracy' in item ? `${item.accuracy}% accuracy` : `Last score: N/A`}
                             </Badge>
                             <Button size="sm" variant="outline">
                               <Play className="h-4 w-4" />
