@@ -15,7 +15,6 @@ import {
 import { UserButton, useUser } from "@clerk/clerk-react"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
-import { SpotifyEmbed } from "@/components/spotify-embed"
 import {
   Sidebar,
   SidebarContent,
@@ -109,7 +108,6 @@ export function AppSidebar({ ...props }) {
       <SidebarContent>
         <NavMain items={data.navMain} />
         {/* <NavDocuments items={data.documents} /> */}
-        <SpotifyEmbed />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

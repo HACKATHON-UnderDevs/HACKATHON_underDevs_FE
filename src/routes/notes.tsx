@@ -57,6 +57,7 @@ import {
   deleteNote,
 } from '@/services/noteService';
 import { getWorkspacesForUser } from '@/services/workspaceService';
+import { SpotifyEmbed } from '@/components/spotify-embed';
 
 
 // --- Template Data (will be replaced by API calls) ---
@@ -243,9 +244,9 @@ function NotesPageContent() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-3rem)]">
-          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r flex-col ${selectedNoteId ? 'hidden md:flex' : 'flex'} ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
-            <header className="mb-4">
-              <h1 className="text-xl font-semibold text-gray-800 mb-4">My Notes</h1>
+          <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 border-r dark:border-gray-800 flex-col ${selectedNoteId ? 'hidden md:flex' : 'flex'} ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
+            <header className="mb-4 flex-shrink-0">
+              <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">My Notes</h1>
               <div className="relative mb-4">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -280,7 +281,7 @@ function NotesPageContent() {
                 </Button>
               </div>
             </header>
-            <div className="space-y-3 overflow-y-auto flex-grow">
+            <div className="flex-1 space-y-3 overflow-y-auto">
               {filteredNotes.length > 0 ? filteredNotes.map(note => (
                 <NoteCard
                   key={note.id}
@@ -291,16 +292,19 @@ function NotesPageContent() {
                   onDeleteNote={handleDeleteNote}
                 />
               )) : (
-                <p className="text-center text-sm text-gray-500 mt-8">No notes found.</p>
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">No notes found.</p>
               )}
+            </div>
+            <div className="flex-shrink-0 pt-4">
+                <SpotifyEmbed />
             </div>
           </aside>
 
           <main className={`flex-1 p-4 md:p-6 flex flex-col ${selectedNoteId ? 'flex' : 'hidden md:flex'} ${isSidebarCollapsed ? 'w-full' : 'md:w-2/3 lg:w-3/4'}`}>
             {selectedNoteId && !selectedNote && (
                <div className="text-center py-10 flex flex-col items-center justify-center h-full">
-                <h2 className="text-2xl font-semibold text-gray-600">Note not found</h2>
-                <p className="text-gray-500 mt-2">The selected note could not be found, or it is still loading.</p>
+                <h2 className="text-2xl font-semibold text-gray-600 dark:text-gray-300">Note not found</h2>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">The selected note could not be found, or it is still loading.</p>
                </div>
             )}
             
@@ -411,8 +415,8 @@ function NotesPageContent() {
               </div>
             ) : (
               <div className="text-center py-10 flex flex-col items-center justify-center h-full">
-                <h2 className="text-2xl font-semibold text-gray-600">Select a note</h2>
-                <p className="text-gray-500 mt-2">Choose a note from the list to view or create a new one.</p>
+                <h2 className="text-2xl font-semibold text-gray-600 dark:text-gray-300">Select a note</h2>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">Choose a note from the list to view or create a new one.</p>
               </div>
             )}
           </main>

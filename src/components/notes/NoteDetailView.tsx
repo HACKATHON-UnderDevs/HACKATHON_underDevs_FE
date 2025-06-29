@@ -48,6 +48,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useTheme } from "@/components/shared/ThemeProvider";
 
 const userColors = [
   "#ff6b6b",
@@ -219,6 +220,7 @@ export function NoteDetailView({
 }: NoteDetailViewProps) {
   const { user } = useUser();
   const supabase = useSupabase();
+  const { theme } = useTheme();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const doc = useMemo(() => new Y.Doc(), [note.id]);
   const contentRestored = useRef(false);
@@ -443,7 +445,7 @@ export function NoteDetailView({
 
   return (
     <Sheet>
-      <div className="flex-1 bg-white rounded-xl shadow-lg flex flex-col min-w-0">
+      <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg flex flex-col min-w-0">
         <NoteHeader
           title={note.title}
           onTitleChange={(newTitle) => onUpdateNote({ title: newTitle })}
@@ -479,7 +481,7 @@ export function NoteDetailView({
         </NoteHeader>
         <div className="flex-grow p-4 overflow-y-auto">
           <BlockNoteView
-            theme="light"
+            theme={theme === "dark" ? "dark" : "light"}
             editor={editor}
             onChange={debouncedEditorUpdate}
             slashMenu={false}
@@ -509,22 +511,22 @@ export function NoteDetailView({
         <div className="space-y-3 overflow-y-auto flex-grow p-4">
           {historyLog.length > 0 ? (
             historyLog.map((item, i) => (
-              <div key={i} className="text-sm p-2 rounded-md bg-gray-50">
+              <div key={i} className="text-sm p-2 rounded-md bg-gray-50 dark:bg-gray-800">
                 <div className="flex items-center justify-between">
                   <span
                     style={{ color: item.user.color, fontWeight: "bold" }}
                   >
                     {item.user.name}
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
                     {new Date(item.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <p className="text-gray-600 mt-1">{item.summary}</p>
+                <p className="text-gray-600 dark:text-gray-300 mt-1">{item.summary}</p>
               </div>
             ))
           ) : (
-            <p className="text-sm text-gray-500 text-center mt-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
               No recent changes.
             </p>
           )}
