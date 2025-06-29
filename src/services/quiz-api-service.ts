@@ -134,7 +134,7 @@ export interface GenerateFlashcardOptions {
 }
 
 export class QuizAPIService {
-  private static readonly BACKEND_API_URL = 'http://127.0.0.1:8000';
+  private static readonly BACKEND_API_URL = 'https://ai.vibe88.tech';
 
   // Generate a unique quiz ID
   private static generateQuizId(): string {
