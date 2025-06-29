@@ -15,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Crown, Gamepad2, Hash, Swords, Users, XCircle } from 'lucide-react';
 import { PostgrestError } from '@supabase/supabase-js';
 
-// A "Not Found" component to be displayed when a sub-route of /quiz is not found.
 function QuizNotFound() {
   return (
     <SidebarProvider>
@@ -38,17 +37,13 @@ function QuizNotFound() {
   )
 }
 
-// The route now points to the Layout component
 export const Route = createFileRoute('/quiz')({
   component: QuizLayout,
   notFoundComponent: QuizNotFound,
 });
 
-// This new layout component wraps all routes under /quiz/*
 function QuizLayout() {
-  // Get the current path from the router state
   const { pathname } = useRouterState({ select: (s) => s.location });
-  // Check if the current path is exactly `/quiz`
   const isIndex = pathname === Route.fullPath;
 
   return (
@@ -62,8 +57,8 @@ function QuizLayout() {
   );
 }
 
-function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: string, questions_count?: number }, onHost: (quizId: string) => void, disabled: boolean }) {
-    const hasQuestions = (quiz.questions_count ?? 0) > 0;
+function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: string, question_count?: number }, onHost: (quizId: string) => void, disabled: boolean }) {
+    const hasQuestions = (quiz.question_count ?? 0) > 0;
     return (
         <Card className="hover:border-primary transition-colors flex flex-col">
             <CardHeader className="flex-1">
@@ -72,7 +67,7 @@ function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: strin
                     {quiz.title}
                 </CardTitle>
                 <CardDescription className={!hasQuestions ? 'text-destructive' : ''}>
-                    {hasQuestions ? `${quiz.questions_count ?? 0} questions available` : 'This quiz has no questions and cannot be hosted.'}
+                    {hasQuestions ? `${quiz.question_count ?? 0} questions available` : 'This quiz has no questions and cannot be hosted.'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -84,12 +79,11 @@ function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: strin
     );
 }
 
-// The content for the /quiz index page has been moved into this component
 function QuizLobbyContent() {
   const [sessionCode, setSessionCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [quizzes, setQuizzes] = useState<{ id: string; title: string; questions_count: number }[]>([]);
+  const [quizzes, setQuizzes] = useState<{ id: string; title: string; question_count: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const navigate = useNavigate();
@@ -98,18 +92,12 @@ function QuizLobbyContent() {
 
   useEffect(() => {
     if (!supabase || !user) return;
-
-    type QuizWithQuestionCount = {
-      id: string;
-      title: string;
-      questions: { count: number }[];
-    };
     
     supabase
       .from('quizzes')
-      .select('id, title, questions(count)')
+      .select('id, title, question_count')
       .eq('user_id', user.id)
-      .then(({ data, error }: { data: QuizWithQuestionCount[] | null; error: PostgrestError | null }) => {
+      .then(({ data, error }: { data: { id: string; title: string; question_count: number }[] | null; error: PostgrestError | null }) => {
         if (error) {
             console.error("Error fetching quizzes:", error);
             setIsLoading(false);
@@ -117,15 +105,8 @@ function QuizLobbyContent() {
         }
 
         if (data) {
-          const formattedAndFilteredData = data
-            .map(q => ({
-                id: q.id,
-                title: q.title,
-                questions_count: q.questions[0]?.count ?? 0,
-            }))
-            .filter(q => q.questions_count > 0); // Filter on the client side
-
-          setQuizzes(formattedAndFilteredData);
+          const playableQuizzes = data.filter(q => q.question_count > 0);
+          setQuizzes(playableQuizzes);
         }
         setIsLoading(false);
       });

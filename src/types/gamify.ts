@@ -1,25 +1,24 @@
 // src/types/gamify.ts
-// src/types/gamify.ts
-// Represents a single question's answer option
+// Represents a single question's answer option from 'answer_options' table
 export interface AnswerOption {
-    id: string;
-    text: string;
+  id: string; // uuid
+  text: string;
 }
 
-// Represents a single question in a quiz
+// Represents a single question from 'questions' table
 export interface QuizQuestion {
-  id: string;
+  id: string; // uuid
   questionText: string;
   options: AnswerOption[];
-  correctOptionId: string;
+  correctOptionId: string; // uuid
   explanation?: string | null;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   topic: string;
 }
 
-// Represents a multiplayer game session
+// Represents a multiplayer game session from 'game_sessions' table
 export interface GameSession {
-  id: string;
+  id: string; // uuid
   host_user_id: string;
   session_code: string;
   status: 'waiting' | 'in_progress' | 'completed'; 
@@ -28,16 +27,16 @@ export interface GameSession {
   ended_at?: string;
   max_participants: number;
   current_question_index: number;
-  quiz_id: string;
-  quizzes?: {
+  quiz_id: string; // uuid of the quiz from 'quizzes' table
+  quizzes?: { // Joined data from 'quizzes' table
     id: string;
     title: string;
   }
 }
 
-// Represents a player within a game session
+// Represents a player from 'game_participants' table
 export interface GameParticipant {
-  id: number;
+  id: string; // uuid from game_participants.id
   session_id: string;
   user_id: string;
   username: string;
