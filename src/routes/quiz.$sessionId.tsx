@@ -13,7 +13,7 @@ import { useGamePlay } from '@/hooks/use-game-play';
 import { QuizGameSkeleton } from '@/components/skeletons/QuizGameSkeleton';
 import { GameHeader } from '@/components/quiz/game/GameHeader';
 import { QuestionDisplay } from '@/components/quiz/game/QuestionDisplay';
-import { Leaderboard } from '@/components/quiz/game/Leaderborad';
+import { Leaderboard } from '@/components/quiz/game/Leaderboard';
 import { GameResults } from '@/components/quiz/game/GameResults';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -103,8 +103,8 @@ function SessionPage() {
     startGame 
   } = useGameLobby(sessionId);
 
-  // If session status is in_progress, render the game
-  if (session?.status === 'in_progress') {
+  // If session status is 'in_progress' or 'completed', render the game/results page
+  if (session?.status === 'in_progress' || session?.status === 'completed') {
     return <GamePage sessionId={sessionId} />;
   }
   
