@@ -1,4 +1,3 @@
-// src/services/quiz-api-service.ts
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -151,7 +150,7 @@ export interface GenerateFlashcardOptions {
 }
 
 export class QuizAPIService {
-  private static readonly BACKEND_API_URL = 'https://api.vibe88.tech';
+  private static readonly BACKEND_API_URL = 'http://127.0.0.1:8000';
 
   // Generate a unique quiz ID
   private static generateQuizId(): string {

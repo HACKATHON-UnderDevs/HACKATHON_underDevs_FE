@@ -1,5 +1,5 @@
 // src/main.tsx
-import { StrictMode } from "react";
+// import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter, useNavigate } from "@tanstack/react-router";
 import { ClerkProvider } from '@clerk/clerk-react'
@@ -80,8 +80,6 @@ const rootElement = document.getElementById("root")!;
 if (!rootElement.innerHTML) {
 	const root = ReactDOM.createRoot(rootElement);
 	root.render(
-		<StrictMode>
-			<RouterProvider router={router} />
-		</StrictMode>,
+		<RouterProvider router={router} />
 	);
 }
