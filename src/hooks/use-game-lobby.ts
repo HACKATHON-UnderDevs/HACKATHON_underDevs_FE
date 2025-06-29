@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // src/hooks/use-game-lobby.ts
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGamifySupabase } from '@/contexts/GamifySupabaseContext'

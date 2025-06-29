@@ -1,13 +1,13 @@
 // src/components/quiz/game/QuestionDisplay.tsx
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/card";
-import { GameState, QuizQuestion } from "@/types/gamify";
+import { GameState } from "@/types/gamify";
 import { cn } from "@/utils/css";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, X } from "lucide-react";
 
 interface QuestionDisplayProps {
-  question: QuizQuestion;
+  question: NonNullable<GameState['currentQuestion']>;
   gameState: GameState;
   onSelectAnswer: (answerIndex: number) => void;
 }
@@ -56,7 +56,7 @@ export function QuestionDisplay({ question, gameState, onSelectAnswer }: Questio
           <AnimatePresence>
             {question.options.map((option, index) => (
               <motion.div
-                key={index}
+                key={option.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
@@ -71,7 +71,7 @@ export function QuestionDisplay({ question, gameState, onSelectAnswer }: Questio
                   )}
                   variant={getButtonVariant(index)}
                 >
-                  <span>{option}</span>
+                  <span>{option.text}</span>
                   {getIcon(index)}
                 </Button>
               </motion.div>

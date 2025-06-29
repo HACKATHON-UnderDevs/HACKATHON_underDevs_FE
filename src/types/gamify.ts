@@ -1,11 +1,18 @@
 // src/types/gamify.ts
+// src/types/gamify.ts
+// Represents a single question's answer option
+export interface AnswerOption {
+    id: string;
+    text: string;
+}
+
 // Represents a single question in a quiz
 export interface QuizQuestion {
   id: string;
   questionText: string;
-  options: string[];
-  correctOptionIndex: number;
-  explanation?: string;
+  options: AnswerOption[];
+  correctOptionId: string;
+  explanation?: string | null;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   topic: string;
 }
@@ -23,6 +30,7 @@ export interface GameSession {
   current_question_index: number;
   quiz_id: string;
   quizzes?: {
+    id: string;
     title: string;
   }
 }
@@ -46,7 +54,7 @@ export interface GameParticipant {
 export interface GameState {
   session: GameSession | null;
   participants: GameParticipant[];
-  currentQuestion: QuizQuestion | null;
+  currentQuestion: (QuizQuestion & { correctOptionIndex: number }) | null;
   questionNumber: number;
   totalQuestions: number;
   timer: number;
