@@ -3,7 +3,7 @@ import { cn } from '@/utils/css'
 export const Logo = ({ className }: { className?: string; uniColor?: boolean }) => {
     return (
         <img
-            src="public/logo-full.svg"
+            src="/logo-full.svg"
             alt="Logo"
             className={cn('h-8 w-auto brightness-0 dark:brightness-0 dark:invert', className)}
         />

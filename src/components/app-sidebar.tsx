@@ -96,7 +96,7 @@ export function AppSidebar({ ...props }) {
             >
               <Link to="/">
                 <img 
-                  src="/src/images/logo-full.svg" 
+                  src="/logo-full.svg" 
                   alt="LearnSmart AI Logo" 
                   className="h-9 w-auto mx-auto brightness-0 dark:brightness-0 dark:invert" 
                 />
