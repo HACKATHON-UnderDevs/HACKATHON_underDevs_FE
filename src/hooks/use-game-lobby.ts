@@ -29,7 +29,7 @@ export function useGameLobby(sessionId: string) {
       
       const { data: sessionData, error: sessionError } = await supabase
         .from('game_sessions')
-        .select('*, quizzes(id, title)')
+        .select('*, quizzes:generated_quizzes(id, title)')
         .eq('id', sessionId)
         .single()
       

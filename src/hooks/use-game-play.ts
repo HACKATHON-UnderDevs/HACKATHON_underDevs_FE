@@ -1,3 +1,4 @@
+// src/hooks/use-game-play.ts
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/hooks/use-game-play.ts
@@ -17,7 +18,7 @@ const gameService = {
   async getFullGameData(supabase: any, sessionId: string) {
     const { data: sessionData, error: sessionError } = await supabase
       .from('game_sessions')
-      .select('*, quizzes(id, title), game_participants(*, profiles(username, avatar_url))')
+      .select('*, quizzes:generated_quizzes(id, title), game_participants(*, profiles(username, avatar_url))')
       .eq('id', sessionId)
       .single();
 
