@@ -221,6 +221,9 @@ export function NoteDetailView({
   const { user } = useUser();
   const supabase = useSupabase();
   const { theme } = useTheme();
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [sessionCreated, setSessionCreated] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const doc = useMemo(() => new Y.Doc(), [note.id]);
   const contentRestored = useRef(false);
@@ -389,6 +392,36 @@ export function NoteDetailView({
     };
   }, [doc, users, editor]);
 
+  const handleStartAiChat = () => {
+    setIsSessionLoading(true);
+    setSessionCreated(false);
+    setSessionError(null);
+
+    // Fire and forget the API call.
+    fetch("https://api.vibe88.tech/start-voice-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        note_content: JSON.stringify(editor.document),
+        note_title: note.title,
+      }),
+    }).catch((error) => {
+      // We can still log errors, but this won't block the UI.
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred";
+      console.error("Failed to start AI voice session:", error);
+      toast.error(`Could not start AI session in background: ${errorMessage}`);
+    });
+
+    // After 7 seconds, show the link regardless of the API call's status.
+    setTimeout(() => {
+      setIsSessionLoading(false);
+      setSessionCreated(true);
+    }, 7000);
+  };
+
   // Memoize the initial content to prevent re-initialization on every render
   const initialContent = useMemo((): PartialBlock[] | undefined => {
     try {
@@ -452,7 +485,18 @@ export function NoteDetailView({
         >
           <div className="flex items-center gap-2">
             {noteSettingsComponent}
-            <Dialog>
+            <Dialog
+              onOpenChange={(open) => {
+                if (open) {
+                  handleStartAiChat();
+                } else {
+                  // Reset state when dialog is closed for next time
+                  setIsSessionLoading(false);
+                  setSessionCreated(false);
+                  setSessionError(null);
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
@@ -466,7 +510,26 @@ export function NoteDetailView({
                 <DialogHeader>
                   <DialogTitle>AI Chat</DialogTitle>
                   <DialogDescription>
-                    Chat with the AI to get help with your note.
+                    {isSessionLoading ? (
+                      "Starting your AI study session, please wait..."
+                    ) : sessionCreated ? (
+                      <>
+                        Your session is ready.
+                        <br />
+                        <a
+                          href="https://ai.vibe88.tech"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          Click here to study with AI
+                        </a>
+                      </>
+                    ) : sessionError ? (
+                      <span className="text-red-500">{sessionError}</span>
+                    ) : (
+                      "Chat with the AI to get help with your note."
+                    )}
                   </DialogDescription>
                 </DialogHeader>
               </DialogContent>

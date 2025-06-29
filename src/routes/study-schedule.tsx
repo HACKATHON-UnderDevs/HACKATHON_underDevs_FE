@@ -109,6 +109,25 @@ function StudySchedulePage() {
 
   const { createStudyScheduleForNote, isLoading: isCreatingSchedule, error: createScheduleError } = useStudySchedule();
 
+  const handleMarkAsDone = async (studySetId: string) => {
+    if (!supabase || !userId) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('study_sets')
+      .delete()
+      .eq('id', studySetId);
+
+    if (error) {
+      console.error('Error marking study set as done:', error.message);
+      // Consider showing an error toast to the user
+    } else {
+      // Refresh the study sets list
+      getStudySetsForUser(supabase, userId).then(setStudySets);
+    }
+  };
+
   useEffect(() => {
     if (userId && supabase) {
       setIsLoading(true);
@@ -395,6 +414,9 @@ function StudySchedulePage() {
                             >
                               {review.priority}
                             </Badge>
+                            <Button size="sm" variant="ghost" onClick={() => handleMarkAsDone(review.id)}>
+                              <Check className="h-4 w-4" />
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => startStudySet(review)}>
                               <Play className="h-4 w-4" />
                             </Button>
