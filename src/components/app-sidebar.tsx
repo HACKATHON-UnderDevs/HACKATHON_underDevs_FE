@@ -15,7 +15,6 @@ import {
   SwordsIcon,
 } from "lucide-react"
 import { UserButton, useUser } from "@clerk/clerk-react"
-
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -28,8 +27,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Link } from "@tanstack/react-router"
-
 
 // Sample data for navigation
 const data = {
