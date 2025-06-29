@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/rules-of-hooks */
-// src/components/notes/NoteDetailView.tsx
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -36,6 +33,11 @@ import type { Note } from "@/supabase/supabase";
 import * as Y from "yjs";
 import YPartyKitProvider from "y-partykit/provider";
 import { useUser } from "@clerk/clerk-react";
+import { useSupabase } from "@/contexts/SupabaseContext";
+import { uploadFile, getPublicUrl } from "@/services/storageService";
+import { Button } from "../ui/Button";
+import { History } from "lucide-react";
+import { cn } from "@/utils/css";
 
 const userColors = [
   "#ff6b6b",
@@ -72,21 +74,113 @@ const client = createBlockNoteAIClient({
 interface NoteDetailViewProps {
   note: Note;
   onUpdateNote: (updatedNote: Partial<Note>) => void;
+  noteSettingsComponent?: React.ReactNode;
+}
+
+type UserInfo = { id: string; name: string; color: string };
+type HistoryItem = {
+  user: UserInfo;
+  timestamp: number;
+  summary: string;
+};
+
+const getBlockText = (block: PartialBlock | undefined): string => {
+  if (!block || !block.content) return "";
+
+  if (Array.isArray(block.content)) {
+    return block.content
+      .map((inline: unknown) => {
+        if (typeof inline === "string") {
+          return inline;
+        }
+        if (typeof inline === "object" && inline !== null && "text" in inline) {
+          return (inline as { text: string }).text;
+        }
+        return "";
+      })
+      .join("")
+      .slice(0, 40); // Truncate for brevity
+  }
+  // For complex block content like tables or string content
+  if (typeof block.content === "string") {
+    return block.content.slice(0, 40);
+  }
+  return `[${block.type} content]`;
+};
+
+function generateSummary(
+  oldDoc: PartialBlock[],
+  newDoc: PartialBlock[]
+): string | null {
+  // Use JSON string comparison as a fast way to check for any change.
+  if (JSON.stringify(oldDoc) === JSON.stringify(newDoc)) {
+    return null;
+  }
+
+  const oldBlockMap = new Map(oldDoc.map((b) => [b.id, b]));
+  const newBlockMap = new Map(newDoc.map((b) => [b.id, b]));
+
+  // Check for added blocks
+  for (const id of newBlockMap.keys()) {
+    if (!oldBlockMap.has(id)) {
+      const addedBlock = newBlockMap.get(id);
+      const text = getBlockText(addedBlock);
+      return `Added a '${
+        addedBlock?.type || "block"
+      }': "${text}${text.length === 40 ? '...' : ''}"`;
+    }
+  }
+
+  // Check for deleted blocks
+  for (const id of oldBlockMap.keys()) {
+    if (!newBlockMap.has(id)) {
+      const deletedBlock = oldBlockMap.get(id);
+      const text = getBlockText(deletedBlock);
+      return `Deleted a '${
+        deletedBlock?.type || "block"
+      }': "${text}${text.length === 40 ? '...' : ''}"`;
+    }
+  }
+
+  // Check for modified blocks
+  for (const id of newBlockMap.keys()) {
+    const oldBlock = oldBlockMap.get(id);
+    const newBlock = newBlockMap.get(id);
+
+    if (oldBlock && newBlock) {
+      if (oldBlock.type !== newBlock.type) {
+        return `Changed a block to type '${newBlock.type}'.`;
+      }
+      // Simple text content comparison for paragraph-like blocks
+      const oldText = JSON.stringify(oldBlock.content);
+      const newText = JSON.stringify(newBlock.content);
+      if (oldText !== newText) {
+        const text = getBlockText(newBlock);
+        return `Edited a '${
+          newBlock.type
+        }': "${text}${text.length === 40 ? '...' : ''}"`;
+      }
+    }
+  }
+
+  return "Made an edit to the document.";
 }
 
 const NoteHeader = ({
   title,
   onTitleChange,
+  children,
 }: {
   title: string;
   onTitleChange: (newTitle: string) => void;
+  children?: React.ReactNode;
 }) => {
   const [editableTitle, setEditableTitle] = useState(title);
 
   const debouncedSave = useDebouncedCallback((newTitle: string) => {
     onTitleChange(newTitle);
     toast.success("Title updated!");
-  }, 1000);
+  }, 2000);
 
   useEffect(() => {
     setEditableTitle(title);
@@ -98,13 +192,14 @@ const NoteHeader = ({
   };
 
   return (
-    <div className="p-4 border-b">
+    <div className="p-4 border-b flex justify-between items-center gap-4">
       <Input
         value={editableTitle}
         onChange={handleChange}
         placeholder="Untitled Note"
-        className="text-2xl font-bold border-0 focus:ring-0 p-0 shadow-none h-auto"
+        className="text-2xl font-bold border-0 focus:ring-0 p-0 shadow-none h-auto flex-grow bg-transparent"
       />
+      <div className="flex-shrink-0">{children}</div>
     </div>
   );
 };
@@ -143,10 +238,23 @@ function SuggestionMenuWithAI(props: { editor: BlockNoteEditor }) {
   );
 }
 
-export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
+export function NoteDetailView({
+  note,
+  onUpdateNote,
+  noteSettingsComponent,
+}: NoteDetailViewProps) {
   const { user } = useUser();
-  const doc = useMemo(() => new Y.Doc(), []);
+  const supabase = useSupabase();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const doc = useMemo(() => new Y.Doc(), [note.id]);
   const contentRestored = useRef(false);
+  const lastDocumentState = useRef<PartialBlock[] | null>(null);
+
+  // State for history tracking
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  const [historyLog, setHistoryLog] = useState<HistoryItem[]>([]);
+  const [users, setUsers] = useState<Map<number, UserInfo>>(new Map());
+  const userActionTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   const provider = useMemo(() => {
     if (!note.id || !doc) return null;
@@ -157,6 +265,49 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
       doc
     );
   }, [note.id, doc]);
+
+  useEffect(() => {
+    if (!provider || !user) return;
+
+    const awareness = provider.awareness;
+    awareness.setLocalStateField("user", {
+      name: user.fullName || "Anonymous",
+      id: user.id,
+      color: getRandomColor(),
+    });
+
+    const handleAwarenessChange = () => {
+      const newUsers = new Map<number, UserInfo>();
+      awareness.getStates().forEach((state, clientID) => {
+        if (state.user) {
+          newUsers.set(clientID, state.user);
+        }
+      });
+      setUsers(newUsers);
+    };
+
+    awareness.on("change", handleAwarenessChange);
+    handleAwarenessChange(); // Initial load
+
+    return () => {
+      awareness.off("change", handleAwarenessChange);
+    };
+  }, [provider, user]);
+
+  // This effect synchronizes the shared Y.Array with the local React state for rendering.
+  useEffect(() => {
+    const historyArray = doc.getArray<HistoryItem>("note-history");
+    const syncHistory = () => {
+      setHistoryLog(historyArray.toArray());
+    };
+
+    historyArray.observe(syncHistory);
+    syncHistory(); // Initial sync
+
+    return () => {
+      historyArray.unobserve(syncHistory);
+    };
+  }, [doc]);
 
   const editor = useCreateBlockNote(
     {
@@ -178,9 +329,91 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
           model,
         }),
       ],
+      uploadFile: async (file: File) => {
+        if (!supabase) {
+          toast.error("Connection not established. Cannot upload file.");
+          // BlockNote expects a Promise rejection on failure
+          return Promise.reject("Supabase client not available.");
+        }
+        if (!note.id) {
+          toast.error("Note must be saved before uploading files.");
+          return Promise.reject("Note ID is not available.");
+        }
+
+        const path = `${user?.id}/${note.id}/${file.name}-${new Date().toISOString()}`;
+
+        try {
+          await uploadFile(supabase, "notes", path, file);
+          const publicUrl = getPublicUrl(supabase, "notes", path);
+          return publicUrl;
+        } catch (error) {
+          console.error("File upload failed:", error);
+          if (error instanceof Error) {
+            toast.error(`Upload failed: ${error.message}`);
+          }
+          throw error; // Re-throw to let BlockNote know it failed
+        }
+      },
     },
-    [provider, doc, user]
+    [provider, doc, user, supabase, note.id]
   );
+
+  useEffect(() => {
+    if (!doc || users.size === 0 || !editor) return;
+
+    const handleTransaction = (transaction: Y.Transaction) => {
+      const originClientID = transaction.local
+        ? doc.clientID
+        : transaction.origin;
+
+      if (!originClientID) return;
+
+      const userWhoMadeChange = users.get(originClientID);
+
+      if (userWhoMadeChange) {
+        // If a timer already exists for this user, clear it.
+        if (userActionTimers.current.has(originClientID)) {
+          clearTimeout(userActionTimers.current.get(originClientID)!);
+        }
+
+        // Set a new timer to log the action after a pause in activity.
+        const newTimer = setTimeout(() => {
+          const newDoc = editor.document;
+          const oldDoc = lastDocumentState.current;
+          
+          if (oldDoc) {
+            const summary = generateSummary(oldDoc, newDoc);
+
+            if (summary) {
+              // Write the new history item to the shared Y.Array.
+              const historyArray = doc.getArray<HistoryItem>("note-history");
+              historyArray.unshift([
+                {
+                  user: userWhoMadeChange,
+                  timestamp: Date.now(),
+                  summary: summary,
+                },
+              ]);
+            }
+          }
+
+          lastDocumentState.current = newDoc;
+          userActionTimers.current.delete(originClientID);
+        }, 1500); // 1.5 seconds of inactivity
+
+        userActionTimers.current.set(originClientID, newTimer);
+      }
+    };
+
+    doc.on("afterTransaction", handleTransaction);
+
+    return () => {
+      doc.off("afterTransaction", handleTransaction);
+      // Clean up any pending timers when the component unmounts or deps change
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      userActionTimers.current.forEach((timer) => clearTimeout(timer));
+    };
+  }, [doc, users, editor]);
 
   // Memoize the initial content to prevent re-initialization on every render
   const initialContent = useMemo((): PartialBlock[] | undefined => {
@@ -213,6 +446,7 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
           console.log("Content already exists in collaboration document.");
         }
         contentRestored.current = true;
+        lastDocumentState.current = editor.document;
       }
     };
 
@@ -225,7 +459,6 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
       provider.disconnect();
       contentRestored.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id, editor, initialContent, provider, doc]);
 
   const handleEditorChange = () => {
@@ -234,37 +467,86 @@ export function NoteDetailView({ note, onUpdateNote }: NoteDetailViewProps) {
   };
 
   // Debounce the editor change handler
-  const debouncedEditorUpdate = useDebouncedCallback(handleEditorChange, 1500);
+  const debouncedEditorUpdate = useDebouncedCallback(handleEditorChange, 2000);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg flex flex-col h-full">
-      <NoteHeader
-        title={note.title}
-        onTitleChange={(newTitle) => onUpdateNote({ title: newTitle })}
-      />
-      <div className="flex-grow p-4 overflow-y-auto">
-        <BlockNoteView
-          editor={editor}
-          onChange={debouncedEditorUpdate}
-          formattingToolbar={false}
-          slashMenu={false}
-          theme="light"
+    <div className="flex h-full">
+      <div className="flex-1 bg-white rounded-xl shadow-lg flex flex-col min-w-0">
+        <NoteHeader
+          title={note.title}
+          onTitleChange={(newTitle) => onUpdateNote({ title: newTitle })}
         >
-          {/* Add the AI Command menu to the editor */}
-          <AIMenuController />
-
-          {/* We disabled the default formatting toolbar with `formattingToolbar=false` 
-                    and replace it for one with an "AI button" (defined below). 
-                    (See "Formatting Toolbar" in docs)
-                    */}
-          <FormattingToolbarWithAI />
-
-          {/* We disabled the default SlashMenu with `slashMenu=false` 
-                    and replace it for one with an AI option (defined below). 
-                    (See "Suggestion Menus" in docs)
-                    */}
-          <SuggestionMenuWithAI editor={editor} />
-        </BlockNoteView>
+          <div className="flex items-center gap-2">
+            {noteSettingsComponent}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+            >
+              <History className="h-4 w-4 mr-2" />
+              {isHistoryOpen ? "Hide History" : "Show History"}
+            </Button>
+          </div>
+        </NoteHeader>
+        <div className="flex-grow p-4 overflow-y-auto">
+          <BlockNoteView
+            theme="light"
+            editor={editor}
+            onChange={debouncedEditorUpdate}
+            formattingToolbar={false}
+            slashMenu={false}
+          >
+            <FormattingToolbarWithAI />
+            <SuggestionMenuWithAI editor={editor!} />
+            <AIMenuController />
+          </BlockNoteView>
+        </div>
+      </div>
+      <div
+        className={cn(
+          "transition-all duration-300 ease-in-out flex-shrink-0",
+          isHistoryOpen ? "w-72 ml-4" : "w-0"
+        )}
+      >
+        <div className="w-72 border-l p-4 flex flex-col h-full bg-white rounded-xl shadow-lg">
+          <h3 className="text-lg font-semibold mb-4">History</h3>
+          <div className="flex gap-2 mb-4">
+            <Button
+              onClick={() => {
+                const historyArray = doc.getArray<HistoryItem>("note-history");
+                // This deletes all items from the shared array, syncing across clients.
+                historyArray.delete(0, historyArray.length);
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              Clear History
+            </Button>
+          </div>
+          <div className="space-y-3 overflow-y-auto flex-grow">
+            {historyLog.length > 0 ? (
+              historyLog.map((item, i) => (
+                <div key={i} className="text-sm p-2 rounded-md bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <span
+                      style={{ color: item.user.color, fontWeight: "bold" }}
+                    >
+                      {item.user.name}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(item.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mt-1">{item.summary}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center mt-4">
+                No recent changes.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
