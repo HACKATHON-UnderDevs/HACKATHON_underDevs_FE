@@ -13,7 +13,7 @@ steps:
       - nvm install node # Installs the latest version of Node.js
       - nvm use node
       - corepack enable pnpm
-      - echo "$ENVI" | sudo tee .env > /dev/null\
+      - echo "$ENVI" | sudo tee .env > /dev/null
       - pnpm add react-use-measure
       - pnpm install --no-frozen-lockfile
       - pnpm build
