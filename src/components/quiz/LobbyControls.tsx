@@ -19,27 +19,27 @@ export function LobbyControls({ isHost, participants, allPlayersReady, onToggleR
 
   if (isHost) {
     return (
-      <TooltipProvider>
+      <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="w-full text-lg"
+                className="w-full sm:w-64 text-lg font-bold shadow-lg transform hover:scale-105 transition-transform"
                 onClick={onStartGame}
                 disabled={!allPlayersReady || participants.length < 2}
               >
-                <Play className="mr-2 h-5 w-5" />
+                <Play className="mr-2 h-6 w-6" />
                 Start Game
               </Button>
             </div>
           </TooltipTrigger>
           {(!allPlayersReady || participants.length < 2) && (
             <TooltipContent>
-              <p>
+              <p className="text-sm">
                 {participants.length < 2 
-                  ? "Waiting for at least one more player to join."
-                  : "Waiting for all players to be ready."
+                  ? "At least 2 players are needed to start."
+                  : "All players must be ready to start."
                 }
               </p>
             </TooltipContent>
@@ -52,14 +52,19 @@ export function LobbyControls({ isHost, participants, allPlayersReady, onToggleR
   if (!currentUser) return null;
 
   return (
-    <Button size="lg" className="w-full sm:w-auto text-lg" onClick={onToggleReady}>
+    <Button 
+      size="lg" 
+      className="w-full sm:w-64 text-lg font-bold shadow-lg transform hover:scale-105 transition-transform"
+      onClick={onToggleReady}
+      variant={currentUser.is_ready ? "secondary" : "default"}
+    >
       {currentUser.is_ready ? (
         <>
-          <X className="mr-2 h-5 w-5" /> Not Ready
+          <X className="mr-2 h-6 w-6" /> Not Ready
         </>
       ) : (
         <>
-          <Check className="mr-2 h-5 w-5" /> Ready Up
+          <Check className="mr-2 h-6 w-6" /> Ready Up!
         </>
       )}
     </Button>

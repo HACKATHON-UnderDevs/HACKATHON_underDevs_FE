@@ -1,165 +1,223 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/hooks/use-game-lobby.ts
-import { useState, useEffect, useCallback } from 'react';
-import { useGamifySupabase } from '@/contexts/GamifySupabaseContext';
-import { useUser } from '@clerk/clerk-react';
-import { RealtimeChannel } from '@supabase/supabase-js';
-import type { GameSession, GameParticipant } from '@/types/gamify';
-
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useGamifySupabase } from '@/contexts/GamifySupabaseContext'
+import { useUser } from '@clerk/clerk-react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+import type { GameSession, GameParticipant } from '@/types/gamify'
+import { useNavigate } from '@tanstack/react-router'
 
 export function useGameLobby(sessionId: string) {
-  const supabase = useGamifySupabase();
-  const { user } = useUser();
-  
-  const [session, setSession] = useState<GameSession | null>(null);
-  const [participants, setParticipants] = useState<GameParticipant[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const supabase = useGamifySupabase()
+  const { user } = useUser()
+  const channelRef = useRef<RealtimeChannel | null>(null)
+  const navigate = useNavigate()
 
-  const isHost = session?.host_user_id === user?.id;
-  // A game should require at least 2 players, and all must be ready.
-  const allPlayersReady = participants.length > 1 && participants.every(p => p.is_ready);
+  const [session, setSession] = useState<GameSession | null>(null)
+  const [participants, setParticipants] = useState<GameParticipant[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const isHost = session?.host_user_id === user?.id
+  const allPlayersReady =
+    participants.length > 1 && participants.every(p => p.is_ready)
 
   const fetchLobbyData = useCallback(async () => {
-    if (!supabase || !user) return;
-    
+    if (!supabase || !user) return
+
     try {
-      // Fetch session details
+      console.log('Fetching lobby data for session:', sessionId)
+      
       const { data: sessionData, error: sessionError } = await supabase
         .from('game_sessions')
-        .select('*')
-        .eq('session_id', sessionId)
-        .single();
+        .select('*, quizzes(title)')
+        .eq('id', sessionId)
+        .single()
       
-      if (sessionError || !sessionData) throw new Error(sessionError?.message || 'Session not found.');
-      setSession(sessionData);
+      if (sessionError) {
+        console.error('Session fetch error:', sessionError)
+        throw new Error(sessionError.message)
+      }
+      if (!sessionData) throw new Error('Session not found.')
+      
+      console.log('Session data received:', sessionData)
+      setSession(sessionData as GameSession)
 
       const { data: participantsData, error: participantsError } = await supabase
         .from('game_participants')
-        .select('*, profiles(username, avatar_url)') // Join with profiles table
+        .select(`
+          id,
+          session_id,
+          user_id,
+          score,
+          joined_at,
+          is_host,
+          is_ready,
+          final_rank,
+          profiles(username, avatar_url)
+        `)
         .eq('session_id', sessionId)
-        .order('joined_at', { ascending: true });
-        
-      if (participantsError) throw new Error(participantsError.message);
+        .order('joined_at', { ascending: true })
+      
+      if (participantsError) {
+        console.error('Participants fetch error:', participantsError)
+        throw new Error(participantsError.message)
+      }
 
-      const formattedParticipants = participantsData.map((p: any) => ({
-        ...p,
-        username: p.profiles?.username || 'Player',
+      console.log('Participants data received:', participantsData)
+
+      const formatted: GameParticipant[] = participantsData.map((p: any) => ({
+        id: p.id,
+        session_id: p.session_id,
+        user_id: p.user_id,
+        score: p.score ?? 0,
+        joined_at: p.joined_at,
+        is_host: p.is_host ?? false,
+        is_ready: p.is_ready ?? false,
+        final_rank: p.final_rank,
+        username: p.profiles?.username ?? 'Player',
         avatar_url: p.profiles?.avatar_url,
-        profiles: undefined, 
-      }));
+      }))
       
-      setParticipants(formattedParticipants);
-      
+      setParticipants(formatted)
     } catch (err: any) {
-      setError(err.message);
-      console.error("Error fetching lobby data:", err);
+      console.error('Error fetching lobby data:', err)
+      setError(err.message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [supabase, user, sessionId]);
+  }, [supabase, user, sessionId])
 
   useEffect(() => {
     if (!supabase || !user) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
-    
-    setIsLoading(true);
-    fetchLobbyData();
-    
-    const channel: RealtimeChannel = supabase.channel(`game_session:${sessionId}`, {
-      config: {
-        presence: {
-          key: user.id,
+
+    console.log('Setting up realtime for session:', sessionId, 'user:', user.id)
+    fetchLobbyData()
+
+    if (channelRef.current) {
+      console.log('Cleaning up existing channel')
+      channelRef.current.unsubscribe()
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    const channel = supabase
+      .channel(`game-lobby-${sessionId}`, {
+        config: { 
+          presence: { key: user.id },
+          broadcast: { self: true }
         },
-      },
-    });
-
-    // ** THE FIX: Attach all real-time listeners to the channel **
-
-    // 1. Listen for participant changes (joins, leaves, ready status)
-    channel.on(
-      'postgres_changes',
-      { 
-        event: '*', // Listen for INSERT, UPDATE, DELETE
-        schema: 'vibe_learning_gamify_quizz', 
-        table: 'game_participants',
-        filter: `session_id=eq.${sessionId}` 
-      },
-      (payload) => {
-        console.log('Participant change received, refetching lobby:', payload);
-        fetchLobbyData();
-      }
-    );
-      
-    // 2. Listen for game session changes (e.g., game status changing to 'active')
-    channel.on(
-      'postgres_changes', 
-      { 
-        event: 'UPDATE', 
-        schema: 'vibe_learning_gamify_quizz', 
-        table: 'game_sessions',
-        filter: `session_id=eq.${sessionId}` 
-      }, 
-      (payload) => {
-        console.log('Game session change received!', payload);
-        const newSession = payload.new as GameSession;
-        if (newSession.status === 'active') {
-          // This is where you would navigate to the actual game screen
-          console.log("GAME IS STARTING! Navigation would happen here.");
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_participants',
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => {
+          fetchLobbyData()
         }
-        setSession(newSession);
-      }
-    );
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'game_sessions',
+          filter: `id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const newSession = payload.new as GameSession
+          setSession(current => current ? { ...current, ...newSession } : newSession)
+          
+          if (newSession.status === 'in_progress') {
+            console.log('GAME IS STARTING! State updated.')
+            // The incorrect navigation has been removed. The UI will now react to the status change.
+            // navigate({ to: `/quiz/${sessionId}/game` });
+          }
+        }
+      )
 
-    // 3. Subscribe to the channel to activate all listeners
-    channel.subscribe(async (status) => {
+    channel.subscribe(async (status, err) => {
+      console.log('Channel subscription status:', status, err)
+      
       if (status === 'SUBSCRIBED') {
-        // Track user presence once subscribed
-        await channel.track({
-          user_id: user.id,
-          username: user.fullName || 'Anonymous',
-          avatar_url: user.imageUrl,
-        });
+        try {
+          await channel.track({
+            user_id: user.id,
+            username: user.fullName ?? 'Anonymous',
+            avatar_url: user.imageUrl,
+            online_at: new Date().toISOString(),
+          })
+        } catch (trackError) {
+          console.error('Error tracking presence:', trackError)
+        }
+      } else if (status === 'CHANNEL_ERROR') {
+        setError(`Could not connect to the lobby: ${err?.message || 'Unknown error'}`)
+      } else if (status === 'TIMED_OUT') {
+        setError('Connection timed out. Please refresh the page.')
       }
-    });
+    })
 
-    // 4. Cleanup function to remove the channel and its listeners
+    channelRef.current = channel
+
     return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, user, sessionId, fetchLobbyData]);
-  
-  const toggleReady = async () => {
-    if (!supabase || !user) return;
-    const currentUser = participants.find(p => p.user_id === user.id);
-    if (!currentUser) return;
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+    }
+  }, [supabase, user, sessionId, fetchLobbyData, navigate])
 
-    await supabase
+  const toggleReady = async () => {
+    if (!supabase || !user) return
+    const self = participants.find(p => p.user_id === user.id)
+    if (!self) return
+
+    const { error } = await supabase
       .from('game_participants')
-      .update({ is_ready: !currentUser.is_ready })
+      .update({ is_ready: !self.is_ready })
       .eq('session_id', sessionId)
-      .eq('user_id', user.id);
-  };
+      .eq('user_id', user.id)
+
+    if (error) {
+      alert(`Error: ${error.message}`)
+    }
+  }
 
   const startGame = async () => {
-    if (!supabase || !isHost) return;
-    await supabase
+    if (!supabase || !isHost || !allPlayersReady) {
+      return
+    }
+    
+    const { error } = await supabase
       .from('game_sessions')
-      .update({ status: 'active' })
-      .eq('session_id', sessionId);
-  };
+      .update({ 
+        status: 'in_progress',
+        started_at: new Date().toISOString()
+      })
+      .eq('id', sessionId)
 
-  return { 
-    session, 
-    participants, 
-    isLoading, 
-    error, 
+    if (error) {
+      alert(`Error: ${error.message}`)
+    }
+  }
+
+  return {
+    session,
+    participants,
+    isLoading,
+    error,
     isHost,
     allPlayersReady,
     toggleReady,
-    startGame 
-  };
+    startGame,
+  }
 }
