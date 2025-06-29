@@ -34,6 +34,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+} from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import {
   Popover,
@@ -82,6 +87,7 @@ import { useStudySchedule } from '@/hooks/use-study-schedule';
 import { StudySet, Note } from '@/supabase/supabase';
 import { useAuth } from '@clerk/clerk-react';
 import { getNotes } from '@/services/noteService';
+import { useStudySession } from '@/contexts/StudySessionContext';
 
 export const Route = createFileRoute('/study-schedule')({ component: StudySchedulePage });
 
@@ -99,8 +105,28 @@ function StudySchedulePage() {
   const [selectedNote, setSelectedNote] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const { startStudySet } = useStudySession();
 
   const { createStudyScheduleForNote, isLoading: isCreatingSchedule, error: createScheduleError } = useStudySchedule();
+
+  const handleMarkAsDone = async (studySetId: string) => {
+    if (!supabase || !userId) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('study_sets')
+      .delete()
+      .eq('id', studySetId);
+
+    if (error) {
+      console.error('Error marking study set as done:', error.message);
+      // Consider showing an error toast to the user
+    } else {
+      // Refresh the study sets list
+      getStudySetsForUser(supabase, userId).then(setStudySets);
+    }
+  };
 
   useEffect(() => {
     if (userId && supabase) {
@@ -110,6 +136,19 @@ function StudySchedulePage() {
         getNotes(supabase, userId),
       ])
         .then(([studySetsData, notesData]) => {
+          if (studySetsData) {
+            const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+            studySetsData.sort((a, b) => {
+              const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 4;
+              const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 4;
+              if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+              }
+              const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+              const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+              return dateA - dateB;
+            });
+          }
           setStudySets(studySetsData);
           setNotes(notesData);
         })
@@ -284,7 +323,15 @@ function StudySchedulePage() {
                       onChange={(e) => setEndTime(e.target.value)}
                     />
                   </div>
-                  {createScheduleError && <p className="text-red-500 text-sm col-span-4">{createScheduleError.message}</p>}
+                  {createScheduleError && (
+                    <Alert variant="destructive" className="col-span-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                            {createScheduleError.message}
+                        </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button type="button" onClick={handleScheduleSession} disabled={isCreatingSchedule || !selectedNote || !startTime || !endTime}>
@@ -367,7 +414,10 @@ function StudySchedulePage() {
                             >
                               {review.priority}
                             </Badge>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => handleMarkAsDone(review.id)}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => startStudySet(review)}>
                               <Play className="h-4 w-4" />
                             </Button>
                           </div>

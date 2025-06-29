@@ -9,17 +9,13 @@ import { en } from "@blocknote/core/locales";
 import "@blocknote/core/fonts/inter.css";
 import {
   useCreateBlockNote,
-  FormattingToolbar,
-  FormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
-  getFormattingToolbarItems,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import {
   AIMenuController,
-  AIToolbarButton,
   createAIExtension,
   createBlockNoteAIClient,
   getAISlashMenuItems,
@@ -36,8 +32,23 @@ import { useUser } from "@clerk/clerk-react";
 import { useSupabase } from "@/contexts/SupabaseContext";
 import { uploadFile, getPublicUrl } from "@/services/storageService";
 import { Button } from "../ui/Button";
-import { History } from "lucide-react";
-import { cn } from "@/utils/css";
+import { History, Bot } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useTheme } from "@/components/shared/ThemeProvider";
 
 const userColors = [
   "#ff6b6b",
@@ -108,63 +119,42 @@ const getBlockText = (block: PartialBlock | undefined): string => {
   return `[${block.type} content]`;
 };
 
-function generateSummary(
+/**
+ * Generates a brief summary of the changes between two document states.
+ */
+const generateSummary = (
   oldDoc: PartialBlock[],
   newDoc: PartialBlock[]
-): string | null {
-  // Use JSON string comparison as a fast way to check for any change.
-  if (JSON.stringify(oldDoc) === JSON.stringify(newDoc)) {
-    return null;
-  }
+): string | null => {
+  const oldBlocks = new Map(oldDoc.map((b) => [b.id, b]));
+  const newBlocks = new Map(newDoc.map((b) => [b.id, b]));
+  const changes: string[] = [];
 
-  const oldBlockMap = new Map(oldDoc.map((b) => [b.id, b]));
-  const newBlockMap = new Map(newDoc.map((b) => [b.id, b]));
-
-  // Check for added blocks
-  for (const id of newBlockMap.keys()) {
-    if (!oldBlockMap.has(id)) {
-      const addedBlock = newBlockMap.get(id);
-      const text = getBlockText(addedBlock);
-      return `Added a '${
-        addedBlock?.type || "block"
-      }': "${text}${text.length === 40 ? '...' : ''}"`;
+  // Check for added/modified blocks
+  for (const [id, newBlock] of newBlocks.entries()) {
+    const oldBlock = oldBlocks.get(id);
+    if (!oldBlock) {
+      changes.push(`Added: "${getBlockText(newBlock)}"`);
+    } else if (
+      JSON.stringify(oldBlock.content) !== JSON.stringify(newBlock.content)
+    ) {
+      changes.push(`Modified: "${getBlockText(newBlock)}"`);
     }
+    oldBlocks.delete(id); // handled
   }
 
   // Check for deleted blocks
-  for (const id of oldBlockMap.keys()) {
-    if (!newBlockMap.has(id)) {
-      const deletedBlock = oldBlockMap.get(id);
-      const text = getBlockText(deletedBlock);
-      return `Deleted a '${
-        deletedBlock?.type || "block"
-      }': "${text}${text.length === 40 ? '...' : ''}"`;
-    }
+  for (const [, oldBlock] of oldBlocks.entries()) {
+    changes.push(`Deleted: "${getBlockText(oldBlock)}"`);
   }
 
-  // Check for modified blocks
-  for (const id of newBlockMap.keys()) {
-    const oldBlock = oldBlockMap.get(id);
-    const newBlock = newBlockMap.get(id);
-
-    if (oldBlock && newBlock) {
-      if (oldBlock.type !== newBlock.type) {
-        return `Changed a block to type '${newBlock.type}'.`;
-      }
-      // Simple text content comparison for paragraph-like blocks
-      const oldText = JSON.stringify(oldBlock.content);
-      const newText = JSON.stringify(newBlock.content);
-      if (oldText !== newText) {
-        const text = getBlockText(newBlock);
-        return `Edited a '${
-          newBlock.type
-        }': "${text}${text.length === 40 ? '...' : ''}"`;
-      }
-    }
-  }
-
-  return "Made an edit to the document.";
-}
+  if (changes.length === 0) return null;
+  if (changes.length > 2)
+    return `${changes.slice(0, 2).join(", ")} and ${
+      changes.length - 2
+    } other changes.`;
+  return changes.join(", ");
+};
 
 const NoteHeader = ({
   title,
@@ -204,21 +194,6 @@ const NoteHeader = ({
   );
 };
 
-// Formatting toolbar with the `AIToolbarButton` added
-function FormattingToolbarWithAI() {
-  return (
-    <FormattingToolbarController
-      formattingToolbar={() => (
-        <FormattingToolbar>
-          {...getFormattingToolbarItems()}
-          {/* Add the AI button */}
-          <AIToolbarButton />
-        </FormattingToolbar>
-      )}
-    />
-  );
-}
-
 // Slash menu with the AI option added
 function SuggestionMenuWithAI(props: { editor: BlockNoteEditor }) {
   return (
@@ -245,13 +220,18 @@ export function NoteDetailView({
 }: NoteDetailViewProps) {
   const { user } = useUser();
   const supabase = useSupabase();
+  const { theme } = useTheme();
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [sessionCreated, setSessionCreated] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const doc = useMemo(() => new Y.Doc(), [note.id]);
   const contentRestored = useRef(false);
   const lastDocumentState = useRef<PartialBlock[] | null>(null);
 
+  const aiExtension = useMemo(() => createAIExtension({ model }), []);
+
   // State for history tracking
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   const [historyLog, setHistoryLog] = useState<HistoryItem[]>([]);
   const [users, setUsers] = useState<Map<number, UserInfo>>(new Map());
   const userActionTimers = useRef<Map<number, NodeJS.Timeout>>(new Map());
@@ -324,11 +304,7 @@ export function NoteDetailView({
         ai: aiEn, // add default translations for the AI extension
       },
       // Register the AI extension
-      extensions: [
-        createAIExtension({
-          model,
-        }),
-      ],
+      extensions: [aiExtension],
       uploadFile: async (file: File) => {
         if (!supabase) {
           toast.error("Connection not established. Cannot upload file.");
@@ -355,10 +331,11 @@ export function NoteDetailView({
         }
       },
     },
-    [provider, doc, user, supabase, note.id]
+    [provider, doc, user, supabase, note.id, aiExtension]
   );
 
   useEffect(() => {
+    console.log(editor);
     if (!doc || users.size === 0 || !editor) return;
 
     const handleTransaction = (transaction: Y.Transaction) => {
@@ -415,6 +392,36 @@ export function NoteDetailView({
     };
   }, [doc, users, editor]);
 
+  const handleStartAiChat = () => {
+    setIsSessionLoading(true);
+    setSessionCreated(false);
+    setSessionError(null);
+
+    // Fire and forget the API call.
+    fetch("https://api.vibe88.tech/start-voice-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        note_content: JSON.stringify(editor.document),
+        note_title: note.title,
+      }),
+    }).catch((error) => {
+      // We can still log errors, but this won't block the UI.
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred";
+      console.error("Failed to start AI voice session:", error);
+      toast.error(`Could not start AI session in background: ${errorMessage}`);
+    });
+
+    // After 7 seconds, show the link regardless of the API call's status.
+    setTimeout(() => {
+      setIsSessionLoading(false);
+      setSessionCreated(true);
+    }, 7000);
+  };
+
   // Memoize the initial content to prevent re-initialization on every render
   const initialContent = useMemo((): PartialBlock[] | undefined => {
     try {
@@ -470,85 +477,125 @@ export function NoteDetailView({
   const debouncedEditorUpdate = useDebouncedCallback(handleEditorChange, 2000);
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 bg-white rounded-xl shadow-lg flex flex-col min-w-0">
+    <Sheet>
+      <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg flex flex-col min-w-0">
         <NoteHeader
           title={note.title}
           onTitleChange={(newTitle) => onUpdateNote({ title: newTitle })}
         >
           <div className="flex items-center gap-2">
             {noteSettingsComponent}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+            <Dialog
+              onOpenChange={(open) => {
+                if (open) {
+                  handleStartAiChat();
+                } else {
+                  // Reset state when dialog is closed for next time
+                  setIsSessionLoading(false);
+                  setSessionCreated(false);
+                  setSessionError(null);
+                }
+              }}
             >
-              <History className="h-4 w-4 mr-2" />
-              {isHistoryOpen ? "Hide History" : "Show History"}
-            </Button>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  Chat with AI
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>AI Chat</DialogTitle>
+                  <DialogDescription>
+                    {isSessionLoading ? (
+                      "Starting your AI study session, please wait..."
+                    ) : sessionCreated ? (
+                      <>
+                        Your session is ready.
+                        <br />
+                        <a
+                          href="https://ai.vibe88.tech"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          Click here to study with AI
+                        </a>
+                      </>
+                    ) : sessionError ? (
+                      <span className="text-red-500">{sessionError}</span>
+                    ) : (
+                      "Chat with the AI to get help with your note."
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                <History className="h-4 w-4 mr-2" />
+                History
+              </Button>
+            </SheetTrigger>
           </div>
         </NoteHeader>
         <div className="flex-grow p-4 overflow-y-auto">
           <BlockNoteView
-            theme="light"
+            theme={theme === "dark" ? "dark" : "light"}
             editor={editor}
             onChange={debouncedEditorUpdate}
-            formattingToolbar={false}
             slashMenu={false}
           >
-            <FormattingToolbarWithAI />
             <SuggestionMenuWithAI editor={editor!} />
             <AIMenuController />
           </BlockNoteView>
         </div>
       </div>
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out flex-shrink-0",
-          isHistoryOpen ? "w-72 ml-4" : "w-0"
-        )}
-      >
-        <div className="w-72 border-l p-4 flex flex-col h-full bg-white rounded-xl shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">History</h3>
-          <div className="flex gap-2 mb-4">
-            <Button
-              onClick={() => {
-                const historyArray = doc.getArray<HistoryItem>("note-history");
-                // This deletes all items from the shared array, syncing across clients.
-                historyArray.delete(0, historyArray.length);
-              }}
-              variant="outline"
-              className="flex-1"
-            >
-              Clear History
-            </Button>
-          </div>
-          <div className="space-y-3 overflow-y-auto flex-grow">
-            {historyLog.length > 0 ? (
-              historyLog.map((item, i) => (
-                <div key={i} className="text-sm p-2 rounded-md bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <span
-                      style={{ color: item.user.color, fontWeight: "bold" }}
-                    >
-                      {item.user.name}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(item.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mt-1">{item.summary}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center mt-4">
-                No recent changes.
-              </p>
-            )}
-          </div>
+      <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
+        <SheetHeader className="p-4 border-b">
+          <SheetTitle>History</SheetTitle>
+        </SheetHeader>
+        <div className="p-4">
+          <Button
+            onClick={() => {
+              const historyArray = doc.getArray<HistoryItem>("note-history");
+              // This deletes all items from the shared array, syncing across clients.
+              historyArray.delete(0, historyArray.length);
+            }}
+            variant="outline"
+            className="w-full"
+          >
+            Clear History
+          </Button>
         </div>
-      </div>
-    </div>
+        <div className="space-y-3 overflow-y-auto flex-grow p-4">
+          {historyLog.length > 0 ? (
+            historyLog.map((item, i) => (
+              <div key={i} className="text-sm p-2 rounded-md bg-gray-50 dark:bg-gray-800">
+                <div className="flex items-center justify-between">
+                  <span
+                    style={{ color: item.user.color, fontWeight: "bold" }}
+                  >
+                    {item.user.name}
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {new Date(item.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mt-1">{item.summary}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
+              No recent changes.
+            </p>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

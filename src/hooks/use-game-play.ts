@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/hooks/use-game-play.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGamifySupabase } from '@/contexts/GamifySupabaseContext';
@@ -278,7 +280,7 @@ export function useGamePlay(sessionId: string) {
              }));
         });
         
-        channel.subscribe((status, err) => {
+        channel.subscribe((_status, err) => {
             if(err) toast.error(`Realtime Error: ${err.message}`);
         });
         channelRef.current = channel;
