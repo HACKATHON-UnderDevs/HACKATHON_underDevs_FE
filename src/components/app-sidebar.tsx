@@ -30,7 +30,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-
 // Sample data for navigation
 const data = {
   navMain: [
