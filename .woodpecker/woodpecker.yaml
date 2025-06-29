@@ -14,6 +14,7 @@ steps:
       - nvm use node
       - corepack enable pnpm
       - echo "$ENVI" | sudo tee .env > /dev/null
+      - pnpm add @mantine/core
       - pnpm add react-use-measure
       - pnpm install --no-frozen-lockfile
       - pnpm build
