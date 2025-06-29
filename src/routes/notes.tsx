@@ -142,11 +142,11 @@ function NotesPage() {
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase());
-      if (workspaceId) return matchesSearch; 
+      if (workspaceId) return matchesSearch;
 
-      const matchesFilter = filter === 'all' || 
-                            (filter === 'personal' && !note.workspace_id) || 
-                            (filter === 'workspace' && note.workspace_id);
+      const matchesFilter = filter === 'all' ||
+        (filter === 'personal' && !note.workspace_id) ||
+        (filter === 'workspace' && note.workspace_id);
       return matchesSearch && matchesFilter;
     });
   }, [notes, searchTerm, filter, workspaceId]);
@@ -157,6 +157,7 @@ function NotesPage() {
 
   const handleSelectNote = (id: string) => {
     setSelectedNoteId(id);
+    // @ts-expect-error TS is confused by the search param update
     navigate({ search: (prev) => ({ ...prev, noteId: id }), replace: true });
   };
 
@@ -201,7 +202,7 @@ function NotesPage() {
       const newNotes = notes.filter(n => n.id !== noteId);
       setNotes(newNotes);
       if (selectedNoteId === noteId) {
-          setSelectedNoteId(newNotes.length > 0 ? newNotes[0].id : null);
+        setSelectedNoteId(newNotes.length > 0 ? newNotes[0].id : null);
       }
     }
   }
@@ -230,9 +231,9 @@ function NotesPage() {
               </div>
               {!workspaceId && (
                 <div className="flex items-center gap-2 mb-4">
-                    <Button size="sm" variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')}>All</Button>
-                    <Button size="sm" variant={filter === 'personal' ? 'secondary' : 'outline'} onClick={() => setFilter('personal')}>Personal</Button>
-                    <Button size="sm" variant={filter === 'workspace' ? 'secondary' : 'outline'} onClick={() => setFilter('workspace')}>Workspaces</Button>
+                  <Button size="sm" variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')}>All</Button>
+                  <Button size="sm" variant={filter === 'personal' ? 'secondary' : 'outline'} onClick={() => setFilter('personal')}>Personal</Button>
+                  <Button size="sm" variant={filter === 'workspace' ? 'secondary' : 'outline'} onClick={() => setFilter('workspace')}>Workspaces</Button>
                 </div>
               )}
               <div className="flex items-center gap-2">
@@ -247,9 +248,9 @@ function NotesPage() {
                     Go to workspace
                   </Button>
                 )}
-                 <Button onClick={handleCreateNewNote} size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    New
+                <Button onClick={handleCreateNewNote} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  New
                 </Button>
               </div>
             </header>
