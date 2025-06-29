@@ -1,9 +1,7 @@
 // src/components/app-sidebar.tsx
 import {
   ClipboardListIcon,
-  DatabaseIcon,
   FileCodeIcon,
-  FileIcon,
   FileTextIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
@@ -15,7 +13,6 @@ import {
   SwordsIcon,
 } from "lucide-react"
 import { UserButton, useUser } from "@clerk/clerk-react"
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import {
@@ -61,18 +58,6 @@ const data = {
       title: "Study Schedule",
       url: "/study-schedule",
       icon: ClipboardListIcon,
-    },
-  ],
-  documents: [
-    {
-      name: "Recent Documents",
-      url: "#",
-      icon: FileIcon,
-    },
-    {
-      name: "Shared Files",
-      url: "#",
-      icon: DatabaseIcon,
     },
   ],
   navSecondary: [
@@ -122,7 +107,7 @@ export function AppSidebar({ ...props }) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        {/* <NavDocuments items={data.documents} /> */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

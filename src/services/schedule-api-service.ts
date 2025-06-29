@@ -1,7 +1,11 @@
 import { StudySet } from '@/supabase/supabase';
 
 // This is a hypothetical type for the API response
-type StudySetFromApi = Omit<StudySet, 'id' | 'user_id' | 'created_at' | 'note_id'>;
+export type StudySetFromApi = Omit<StudySet, 'id' | 'user_id' | 'created_at' | 'note_id'> & {
+    dueDate: string;
+    count: number;
+    estimatedTime: number;
+};
 
 interface GenerateScheduleRequest {
   note_content: string;
