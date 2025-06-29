@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Crown, Gamepad2, Hash, Swords, Users, XCircle } from 'lucide-react';
+import { PostgrestError } from '@supabase/supabase-js';
 
 // A "Not Found" component to be displayed when a sub-route of /quiz is not found.
 function QuizNotFound() {
@@ -62,6 +63,7 @@ function QuizLayout() {
 }
 
 function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: string, questions_count?: number }, onHost: (quizId: string) => void, disabled: boolean }) {
+    const hasQuestions = (quiz.questions_count ?? 0) > 0;
     return (
         <Card className="hover:border-primary transition-colors flex flex-col">
             <CardHeader className="flex-1">
@@ -69,12 +71,12 @@ function QuizCard({ quiz, onHost, disabled }: { quiz: { id: string; title: strin
                     <Gamepad2 className="h-5 w-5 text-primary" />
                     {quiz.title}
                 </CardTitle>
-                <CardDescription>
-                    {quiz.questions_count ?? 0} questions available
+                <CardDescription className={!hasQuestions ? 'text-destructive' : ''}>
+                    {hasQuestions ? `${quiz.questions_count ?? 0} questions available` : 'This quiz has no questions and cannot be hosted.'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Button className="w-full" onClick={() => onHost(quiz.id)} disabled={disabled}>
+                <Button className="w-full" onClick={() => onHost(quiz.id)} disabled={disabled || !hasQuestions}>
                     <Crown className="mr-2 h-4 w-4" /> Host this Quiz
                 </Button>
             </CardContent>
@@ -96,21 +98,35 @@ function QuizLobbyContent() {
 
   useEffect(() => {
     if (!supabase || !user) return;
+
+    type QuizWithQuestionCount = {
+      id: string;
+      title: string;
+      questions: { count: number }[];
+    };
     
     supabase
       .from('quizzes')
-      .select('id, title, questions(count)') 
+      .select('id, title, questions(count)')
       .eq('user_id', user.id)
-      .then(({ data, error }) => {
-        if (data) {
-          const formattedData = data.map((q: any) => ({
-            ...q,
-            questions_count: q.questions[0]?.count ?? 0,
-            questions: undefined,
-          }));
-          setQuizzes(formattedData);
+      .then(({ data, error }: { data: QuizWithQuestionCount[] | null; error: PostgrestError | null }) => {
+        if (error) {
+            console.error("Error fetching quizzes:", error);
+            setIsLoading(false);
+            return;
         }
-        if (error) console.error("Error fetching quizzes:", error);
+
+        if (data) {
+          const formattedAndFilteredData = data
+            .map(q => ({
+                id: q.id,
+                title: q.title,
+                questions_count: q.questions[0]?.count ?? 0,
+            }))
+            .filter(q => q.questions_count > 0); // Filter on the client side
+
+          setQuizzes(formattedAndFilteredData);
+        }
         setIsLoading(false);
       });
   }, [supabase, user]);
@@ -122,7 +138,6 @@ function QuizLobbyContent() {
     }
     setIsCreating(true);
     try {
-      // Use supabase.functions.invoke to correctly call the edge function
       const { data, error } = await supabase.functions.invoke('create-game-session', {
         body: { quiz_id: quizId },
       });
@@ -153,13 +168,11 @@ function QuizLobbyContent() {
     }
     setIsJoining(true);
     try {
-      // Implement joining a session via an edge function for security
       const { data, error } = await supabase.functions.invoke('join-game-session', {
         body: { session_code: code },
       });
 
       if (error) {
-        // Handle specific errors, like function not found, gracefully
         if (error.message.includes("Not Found")) {
             throw new Error("The join-game-session function doesn't seem to exist. Or, check the session code.");
         }
@@ -214,7 +227,7 @@ function QuizLobbyContent() {
                 </div>
               ) : (
                 <div className="text-center p-8 border-2 border-dashed rounded-lg">
-                    <p className="text-muted-foreground">You don't have any quizzes yet.</p>
+                    <p className="text-muted-foreground">You don't have any playable quizzes yet.</p>
                     <Button variant="link" asChild>
                         <Link to="/ai-generation">Create a quiz with AI</Link>
                     </Button>
