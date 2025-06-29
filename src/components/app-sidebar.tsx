@@ -15,8 +15,6 @@ import {
   SwordsIcon,
 } from "lucide-react"
 import { UserButton, useUser } from "@clerk/clerk-react"
-import { Link } from "@tanstack/react-router"
-
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
