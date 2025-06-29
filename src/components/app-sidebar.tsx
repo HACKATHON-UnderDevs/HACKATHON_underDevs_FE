@@ -29,6 +29,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Link } from "@tanstack/react-router"
+
 
 // Sample data for navigation
 const data = {
@@ -49,8 +51,8 @@ const data = {
       icon: FileCodeIcon,
     },
     {
-      title: "Collaboration",
-      url: "/collaboration",
+      title: "Workspace",
+      url: "/workspace",
       icon: UsersIcon,
     },
     {
